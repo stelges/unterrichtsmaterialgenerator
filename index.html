@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Materialgenerator</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-label="Unterrichtsmaterial erstellen">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Unterrichtsmaterialgenerator</p>
+            <h1>Materialstudio</h1>
+          </div>
+          <div class="status-pill" id="statusPill">Entwurf</div>
+        </header>
+
+        <form id="briefForm" class="form-grid">
+          <section class="panel">
+            <div class="panel-heading">
+              <span class="step">01</span>
+              <div>
+                <h2>Unterrichtskern</h2>
+                <p>Worum geht es, für wen ist es gedacht?</p>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <label>
+                Fach
+                <input name="fach" type="text" value="Informatik" placeholder="z. B. Informatik" />
+              </label>
+              <label>
+                Klasse
+                <input name="klasse" type="text" value="05d" placeholder="z. B. 05d" />
+              </label>
+            </div>
+
+              <label>
+                Thema
+                <input name="thema" type="text" placeholder="z. B. Ordner und Dateien" />
+              </label>
+
+            <label>
+              Stundenziel
+              <textarea name="stundenziel" rows="3" placeholder="Was sollen die Schüler:innen am Ende können?"></textarea>
+            </label>
+
+            <label>
+              Vorwissen / Stolperstellen
+              <textarea name="vorwissen" rows="3" placeholder="Was können sie schon? Was ist wahrscheinlich noch unsicher?"></textarea>
+            </label>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <span class="step">02</span>
+              <div>
+                <h2>Materialform</h2>
+                <p>Wie soll der Arbeitsauftrag funktionieren?</p>
+              </div>
+            </div>
+
+            <label>
+              Materialtyp
+              <select name="materialtyp">
+                <option>Arbeitsphase mit kurzem Einstieg</option>
+                <option>Arbeitsblatt</option>
+                <option>Lernpfad</option>
+                <option>Erkundungsauftrag</option>
+                <option>Übung / Wiederholung</option>
+                <option>Gruppenauftrag</option>
+              </select>
+            </label>
+
+            <label>
+              Aufgabenmuster
+              <select name="muster">
+                <option>Input + Lese-Check</option>
+                <option>Erkundungsauftrag</option>
+                <option>Prozessauftrag / Forschertagebuch</option>
+                <option>Gemischt, passend zum Thema wählen</option>
+              </select>
+            </label>
+
+            <fieldset>
+              <legend>Schwierigkeit</legend>
+              <div class="segmented">
+                <label><input type="radio" name="schwierigkeit" value="eher leicht" checked /> leicht</label>
+                <label><input type="radio" name="schwierigkeit" value="mittel" /> mittel</label>
+                <label><input type="radio" name="schwierigkeit" value="anspruchsvoll" /> anspruchsvoll</label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Output</legend>
+              <div class="checks">
+                <label><input type="checkbox" name="output" value="HTML-Master" checked /> HTML</label>
+                <label><input type="checkbox" name="output" value="PDF" checked /> PDF</label>
+                <label><input type="checkbox" name="output" value="DOCX" checked /> DOCX</label>
+                <label><input type="checkbox" name="output" value="PPTX-Einstieg" checked /> PPTX</label>
+                <label><input type="checkbox" name="output" value="Lehrkraft-Notiz" checked /> Notiz</label>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <span class="step">03</span>
+              <div>
+                <h2>Stil und Qualität</h2>
+                <p>Damit es fachlich und optisch passt.</p>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <label>
+                Textmenge
+                <select name="textmenge">
+                  <option>wenig Text, kurze Sätze</option>
+                  <option>normal, aber klar gegliedert</option>
+                  <option>mehr Inputtext mit Lesehilfen</option>
+                </select>
+              </label>
+              <label>
+                Gestaltung
+                <select name="gestaltung">
+                  <option>modern, ruhig, iPad- und drucktauglich</option>
+                  <option>sehr schlicht und arbeitsblattnah</option>
+                  <option>visueller, mit mehr Orientierungselementen</option>
+                </select>
+              </label>
+            </div>
+
+            <fieldset>
+              <legend>Besondere Schwerpunkte</legend>
+              <div class="checks vertical">
+                <label><input type="checkbox" name="schwerpunkte" value="kleinschrittiger Startauftrag" checked /> kleinschrittiger Start</label>
+                <label><input type="checkbox" name="schwerpunkte" value="Beispiel vor Eigenarbeit" checked /> Beispiel vor Eigenarbeit</label>
+                <label><input type="checkbox" name="schwerpunkte" value="Stern/Planet/Rakete-Differenzierung" checked /> Stern / Planet / Rakete</label>
+                <label><input type="checkbox" name="schwerpunkte" value="Quellen und Urheberrecht mitdenken" /> Quellen / Urheberrecht</label>
+                <label><input type="checkbox" name="schwerpunkte" value="Partnerarbeit sinnvoll einbauen" /> Partnerarbeit</label>
+              </div>
+            </fieldset>
+
+            <label>
+              Eigene Inhalte / Begriffe / Beispiele
+              <textarea name="inhalte" rows="4" placeholder="Begriffe, Beispiele, Regeln, Textbausteine oder Materialinhalte, die vorkommen sollen ..."></textarea>
+            </label>
+
+            <label>
+              Hinweise zur Klasse
+              <textarea name="hinweise" rows="3" placeholder="z. B. Klasse war zuletzt überfordert, wenig Zeit, bestimmte Begriffe vermeiden ..."></textarea>
+            </label>
+
+            <button id="generateButton" type="button" class="generate-button">Material generieren</button>
+            <p id="generatorMessage" class="generator-message" role="status">Fülle links die Eckdaten aus. Ohne API-Key entsteht automatisch ein solides Basismaterial.</p>
+          </section>
+        </form>
+      </section>
+
+      <aside class="preview" aria-label="Materialvorschau">
+        <div class="preview-header">
+          <div>
+            <p class="eyebrow">Materialvorschau</p>
+            <h2 id="previewTitle">Regelbasierter Entwurf</h2>
+          </div>
+          <button id="resetButton" class="icon-button" type="button" title="Zurücksetzen" aria-label="Zurücksetzen">↺</button>
+        </div>
+
+        <div id="materialPreview" class="material-sheet"></div>
+
+        <div class="actions">
+          <button id="printButton" type="button">PDF drucken</button>
+          <button id="downloadHtmlButton" type="button" class="secondary">HTML laden</button>
+          <button id="downloadNoteButton" type="button" class="secondary">Notiz laden</button>
+        </div>
+      </aside>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
