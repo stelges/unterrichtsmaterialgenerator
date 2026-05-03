@@ -54,7 +54,7 @@ function checkBlocks(pkg, issues) {
 
   for (const task of taskBlocks) {
     if (!task.title) addIssue(issues, "task_title", "medium", `Aufgabe auf Seite ${task.pageNumber} hat keinen Titel.`, "Jede Aufgabe braucht einen klaren Titel.");
-    if (!task.prompt && !task.instruction && !task.question) addIssue(issues, "task_prompt", "high", `Aufgabe ${task.title || "ohne Titel"} hat keinen Schülerauftrag.`, "Einen klaren prompt ergänzen.");
+    if (!hasStudentInstruction(task)) addIssue(issues, "task_prompt", "high", `Aufgabe ${task.title || "ohne Titel"} hat keinen Schülerauftrag.`, "Einen klaren prompt, Titel oder Tabellenauftrag ergänzen.");
     if (!hasVisibleStudentProduct(task)) addIssue(issues, "student_product", "high", `Aufgabe ${task.title || "ohne Titel"} hat kein sichtbares Schülerprodukt.`, "Antwortformat, Tabelle, Zeilen oder Satzstarter ergänzen.");
   }
 }
@@ -101,14 +101,24 @@ function isTaskBlock(type) {
   ].includes(type);
 }
 
+function hasStudentInstruction(block) {
+  if (block.prompt || block.instruction || block.question) return true;
+  if (block.title && [BLOCK_TYPES.TRUE_FALSE_CORRECTION, BLOCK_TYPES.MATCHING_TABLE_TASK, BLOCK_TYPES.OBSERVATION_TABLE, BLOCK_TYPES.REFLECTION_TASK].includes(block.type)) return true;
+  if (Array.isArray(block.items) && block.items.length > 0) return true;
+  if (Array.isArray(block.columns) && block.columns.length > 0) return true;
+  if (Array.isArray(block.prompts) && block.prompts.length > 0) return true;
+  if (Array.isArray(block.fields) && block.fields.length > 0) return true;
+  return false;
+}
+
 function hasVisibleStudentProduct(block) {
-  if (block.answerLines) return true;
+  if (Number(block.answerLines) > 0) return true;
   if (block.sentenceStarter) return true;
-  if (block.columns && (block.rows || block.rows === 0)) return true;
-  if (block.items) return true;
-  if (block.fields) return true;
-  if (block.prompts) return true;
-  if (block.criteria) return true;
+  if (Array.isArray(block.columns) && (Array.isArray(block.rows) || Number(block.rows) > 0)) return true;
+  if (Array.isArray(block.items) && block.items.length > 0) return true;
+  if (Array.isArray(block.fields) && block.fields.length > 0) return true;
+  if (Array.isArray(block.prompts) && block.prompts.length > 0) return true;
+  if (Array.isArray(block.criteria) && block.criteria.length > 0) return true;
   return false;
 }
 
