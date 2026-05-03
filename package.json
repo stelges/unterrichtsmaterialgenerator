@@ -1,11 +1,11 @@
 {
   "name": "unterrichtsmaterialgenerator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check app.js"
+    "check": "node --check server.js && node --check app.js && node --check v2/material-schema-v2.js && node --check v2/package-builder-v2.js && node --check v2/quality-check-v2.js && node --check v2/renderer-v2.js"
   },
   "dependencies": {}
 }
