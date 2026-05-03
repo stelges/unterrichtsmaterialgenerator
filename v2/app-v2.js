@@ -9,6 +9,8 @@ const statusPill = document.querySelector("#statusPill");
 const briefButton = document.querySelector("#briefButton");
 const briefPanel = document.querySelector("#briefPanel");
 const briefOutput = document.querySelector("#briefOutput");
+const briefFeedback = document.querySelector("#briefFeedback");
+const reviseBriefButton = document.querySelector("#reviseBriefButton");
 const acceptBriefButton = document.querySelector("#acceptBriefButton");
 const makeEasierButton = document.querySelector("#makeEasierButton");
 const makeExperimentalButton = document.querySelector("#makeExperimentalButton");
@@ -71,9 +73,15 @@ function setActiveStep(step) {
 }
 
 async function createBrief(extraInstruction = "") {
-  const data = { ...getFormData(), extraInstruction };
+  const feedbackText = briefFeedback?.value?.trim() || "";
+  const data = {
+    ...getFormData(),
+    extraInstruction: [extraInstruction, feedbackText ? `Feedback des Nutzers zum vorherigen Vorschlag: ${feedbackText}` : ""].filter(Boolean).join("\n"),
+    previousBrief: currentBrief || null,
+  };
   localStorage.setItem(draftKey, JSON.stringify(data));
   briefButton.disabled = true;
+  if (reviseBriefButton) reviseBriefButton.disabled = true;
   briefButton.textContent = "Agent prüft ...";
   statusPill.textContent = "plant";
   setActiveStep("plan");
@@ -101,22 +109,24 @@ async function createBrief(extraInstruction = "") {
     statusPill.textContent = "Plan Basis";
   } finally {
     briefButton.disabled = false;
+    if (reviseBriefButton) reviseBriefButton.disabled = false;
     briefButton.textContent = "Didaktik-Plan vorschlagen";
   }
 }
 
 function buildLocalBrief(input) {
   const mode = input.templateMode || "knowledge";
+  const feedback = input.extraInstruction ? ` Berücksichtigt: ${input.extraInstruction}` : "";
   return {
     recommendedTemplateMode: mode,
     recommendationTitle: mode === "experiment" ? "Experiment-Forscherheft" : mode === "exploration" ? "Erkundungs-Forscherheft" : "Wissens-Forscherheft",
-    reasoning: "Regelbasierter Vorschlag: Erst Lernweg klären, dann Material in geprüfte Bausteine kompilieren.",
-    learningPath: ["Problemfrage verstehen", "Wissen aufbauen", "Beispiel nachvollziehen", "Aufgaben bearbeiten", "Sichern", "Abgabe prüfen"],
+    reasoning: `Regelbasierter Vorschlag: Erst Lernweg klären, dann Material in geprüfte Bausteine kompilieren.${feedback}`,
+    learningPath: ["Stundenfrage neugierig lesen", "Wissen aufbauen", "Beispiel nachvollziehen", "Aufgaben bearbeiten", "Sichern", "Abgabe prüfen"],
     coreConcept: input.stundenziel || "Zentrales Konzept wird über Fachbegriffe, Beispiele und Begründungen erschlossen.",
-    taskPlan: ["Wissenskasten", "ausgefülltes Beispiel", "Zuordnungsaufgabe", "Begründungsaufgabe", "Merksatz"],
+    taskPlan: ["Stundenfrage", "Wissenskasten", "ausgefülltes Beispiel", "Zuordnungsaufgabe", "Begründungsaufgabe", "Merksatz"],
     misconceptions: ["Antworten ohne Begründung", "Fachbegriffe werden nur abgeschrieben"],
     missingInfo: [],
-    suggestedChanges: ["Satzstarter verwenden", "direkte Antwortfelder unter Aufgaben setzen"],
+    suggestedChanges: ["Erste Seite mit Stundenfrage statt Lernziel", "Satzstarter verwenden", "direkte Antwortfelder unter Aufgaben setzen"],
     confirmedBrief: { ...input, didacticPlanConfirmed: true },
   };
 }
@@ -125,7 +135,7 @@ function renderBrief(brief, source = "fallback", message = "") {
   briefOutput.innerHTML = `
     <div class="brief-grid">
       ${message ? `<p><strong>Hinweis:</strong> ${escapeHtml(message)}</p>` : ""}
-      <p><strong>Quelle:</strong> ${escapeHtml(source === "ai" ? "Didaktik-Agent" : "regelbasierter Plan")}</p>
+      <p><strong>Quelle:</strong> ${escapeHtml(source === "ai" ? "Didaktik-Agent" : source === "cache" ? "zwischengespeicherter Plan" : "regelbasierter Plan")}</p>
       <h3>${escapeHtml(brief.recommendationTitle || "Didaktik-Vorschlag")}</h3>
       <p>${escapeHtml(brief.reasoning || "")}</p>
       <div><strong>Kernidee:</strong><p>${escapeHtml(brief.coreConcept || "")}</p></div>
@@ -168,7 +178,7 @@ async function generateFromBrief() {
     currentPackage = payload.package || buildMaterialPackageV2(data);
     currentQuality = payload.quality || checkMaterialQuality(currentPackage);
     currentSource = payload.source || "fallback";
-    saveAndRender(payload.message);
+    saveAndRender(payload.message, payload.repaired);
   } catch (error) {
     currentPackage = buildMaterialPackageV2(data);
     currentQuality = checkMaterialQuality(currentPackage);
@@ -189,14 +199,14 @@ function generateFallback() {
   saveAndRender();
 }
 
-function saveAndRender(message = "") {
+function saveAndRender(message = "", repaired = false) {
   localStorage.setItem(packageKey, JSON.stringify(currentPackage));
   preview.innerHTML = renderMaterialPackageV2(currentPackage);
-  renderQuality(currentQuality, message);
+  renderQuality(currentQuality, message, repaired);
   statusPill.textContent = currentSource === "ai" ? "KI-v2" : "Basis-v2";
 }
 
-function renderQuality(quality, message = "") {
+function renderQuality(quality, message = "", repaired = false) {
   const topIssues = quality.issues.slice(0, 6);
   qualityOutput.innerHTML = `
     <div class="quality-score ${quality.score >= 80 ? "good" : quality.score >= 60 ? "medium" : "bad"}">
@@ -204,17 +214,18 @@ function renderQuality(quality, message = "") {
       <span>${quality.ok ? "Keine kritischen Fehler" : "Noch verbessern"}</span>
     </div>
     ${message ? `<p>${escapeHtml(message)}</p>` : ""}
+    ${repaired ? `<p><strong>Repair-Agent:</strong> Material wurde automatisch nachgebessert.</p>` : ""}
     ${currentSource ? `<p><strong>Quelle:</strong> ${escapeHtml(currentSource === "ai" ? "KI + Qualitätscheck" : "regelbasierter Builder")}</p>` : ""}
     ${topIssues.length ? `<ul>${topIssues.map((issue) => `<li><strong>${escapeHtml(issue.severity)}</strong>: ${escapeHtml(issue.message)}</li>`).join("")}</ul>` : "<p>Der Qualitätscheck findet keine größeren Probleme.</p>"}
   `;
 }
 
 function buildScobeesText(pkg) {
-  return `Titel: ${pkg.meta.title}\n\nFach/Klasse: ${pkg.meta.subject} · ${pkg.meta.className}\n\nZiel:\n${pkg.didacticPlan.learningGoal}\n\nLeitfrage:\n${pkg.didacticPlan.guidingQuestion}\n\nArbeitsweg:\n${pkg.didacticPlan.learningPath.map((step, index) => `${index + 1}. ${step}`).join("\n")}\n\nAbgabe:\n${pkg.scobees.submission}\n`;
+  return `Titel: ${pkg.meta.title}\n\nFach/Klasse: ${pkg.meta.subject} · ${pkg.meta.className}\n\nStundenfrage:\n${pkg.didacticPlan.guidingQuestion}\n\nArbeitsweg:\n${pkg.didacticPlan.learningPath.map((step, index) => `${index + 1}. ${step}`).join("\n")}\n\nAbgabe:\n${pkg.scobees.submission}\n`;
 }
 
 function buildTeacherNote(pkg, quality) {
-  return `# Lehrkraft-Notiz: ${pkg.meta.title}\n\n## Eckdaten\n- Fach: ${pkg.meta.subject}\n- Klasse: ${pkg.meta.className}\n- Dauer: ${pkg.meta.duration}\n- Modus: ${pkg.meta.templateMode}\n- Seiten: ${pkg.meta.pageCount}\n- Quelle: ${currentSource}\n\n## Ziel\n${pkg.didacticPlan.learningGoal}\n\n## Leitfrage\n${pkg.didacticPlan.guidingQuestion}\n\n## Kernkonzept\n${pkg.didacticPlan.coreConcept}\n\n## Lernweg\n${pkg.didacticPlan.learningPath.map((step, index) => `${index + 1}. ${step}`).join("\n")}\n\n## Typische Fehlvorstellungen\n${pkg.didacticPlan.misconceptions.map((item) => `- ${item}`).join("\n")}\n\n## Erfolgskriterien\n${pkg.didacticPlan.successCriteria.map((item) => `- ${item}`).join("\n")}\n\n## Qualitätscheck\nScore: ${quality.score}/100\n\n${quality.issues.length ? quality.issues.map((issue) => `- [${issue.severity}] ${issue.message}`).join("\n") : "Keine größeren Probleme gefunden."}\n`;
+  return `# Lehrkraft-Notiz: ${pkg.meta.title}\n\n## Eckdaten\n- Fach: ${pkg.meta.subject}\n- Klasse: ${pkg.meta.className}\n- Dauer: ${pkg.meta.duration}\n- Modus: ${pkg.meta.templateMode}\n- Seiten: ${pkg.meta.pageCount}\n- Quelle: ${currentSource}\n\n## Internes Lernziel\n${pkg.didacticPlan.learningGoal}\n\n## Stundenfrage für SuS\n${pkg.didacticPlan.guidingQuestion}\n\n## Kernkonzept\n${pkg.didacticPlan.coreConcept}\n\n## Lernweg\n${pkg.didacticPlan.learningPath.map((step, index) => `${index + 1}. ${step}`).join("\n")}\n\n## Typische Fehlvorstellungen\n${pkg.didacticPlan.misconceptions.map((item) => `- ${item}`).join("\n")}\n\n## Erfolgskriterien\n${pkg.didacticPlan.successCriteria.map((item) => `- ${item}`).join("\n")}\n\n## Qualitätscheck\nScore: ${quality.score}/100\n\n${quality.issues.length ? quality.issues.map((issue) => `- [${issue.severity}] ${issue.message}`).join("\n") : "Keine größeren Probleme gefunden."}\n`;
 }
 
 function buildFullHtml(pkg) {
@@ -244,6 +255,7 @@ function reset() {
   localStorage.removeItem(packageKey);
   localStorage.removeItem(briefKey);
   form.reset();
+  if (briefFeedback) briefFeedback.value = "";
   preview.innerHTML = "";
   currentBrief = null;
   currentPackage = null;
@@ -260,6 +272,7 @@ function escapeHtml(value) {
 }
 
 briefButton.addEventListener("click", () => createBrief());
+reviseBriefButton?.addEventListener("click", () => createBrief("Überarbeite den vorherigen Didaktik-Plan anhand des Nutzerfeedbacks."));
 acceptBriefButton.addEventListener("click", generateFromBrief);
 makeEasierButton.addEventListener("click", () => createBrief("Mache den Plan einfacher, kleinschrittiger und mit mehr Satzstartern."));
 makeExperimentalButton.addEventListener("click", () => { form.elements.templateMode.value = "experiment"; createBrief("Plane das Material experimenteller mit Vermutung, Beobachtung und Auswertung."); });
