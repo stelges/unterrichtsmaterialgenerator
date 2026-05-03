@@ -6,6 +6,7 @@
     <title>Materialgenerator</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./print.css" />
+    <link rel="stylesheet" href="./v4.css" />
   </head>
   <body>
     <main class="app-shell">
@@ -18,85 +19,18 @@
           <div class="status-pill" id="statusPill">Entwurf</div>
         </header>
 
-        <form id="briefForm" class="form-grid">
+        <form id="briefForm" class="form-grid simplified-form">
           <section class="panel">
             <div class="panel-heading">
               <span class="step">01</span>
               <div>
-                <h2>Unterrichtskern</h2>
-                <p>Worum geht es, für wen ist es gedacht?</p>
+                <h2>Material auswählen</h2>
+                <p>Eine klare Entscheidung reicht. Daraus ergibt sich das Layout.</p>
               </div>
             </div>
-
-            <div class="field-row">
-              <label>
-                Fach
-                <input name="fach" type="text" value="Informatik" placeholder="z. B. Informatik" />
-              </label>
-              <label>
-                Klasse
-                <input name="klasse" type="text" value="05d" placeholder="z. B. 05d" />
-              </label>
-            </div>
-
-            <label>
-              Thema
-              <input name="thema" type="text" placeholder="z. B. vertrauenswürdige Internetquellen" />
-            </label>
-
-            <label>
-              Stundenziel
-              <textarea name="stundenziel" rows="3" placeholder="Was sollen die Schüler:innen am Ende können?"></textarea>
-            </label>
-
-            <label>
-              Leitfrage / Forscherfrage
-              <textarea name="leitfrage" rows="2" placeholder="z. B. Woran erkenne ich, ob eine Internetquelle vertrauenswürdig ist?"></textarea>
-            </label>
-
-            <div class="field-row">
-              <label>
-                Dauer
-                <input name="dauer" type="text" value="60 Minuten" placeholder="z. B. 60 Minuten" />
-              </label>
-              <label>
-                Niveau
-                <select name="schwierigkeit">
-                  <option value="eher leicht" selected>eher leicht</option>
-                  <option value="mittel">mittel</option>
-                  <option value="anspruchsvoll">anspruchsvoll</option>
-                </select>
-              </label>
-            </div>
-
-            <label>
-              Vorwissen / Stolperstellen
-              <textarea name="vorwissen" rows="3" placeholder="Was können sie schon? Was ist wahrscheinlich noch unsicher?"></textarea>
-            </label>
-          </section>
-
-          <section class="panel">
-            <div class="panel-heading">
-              <span class="step">02</span>
-              <div>
-                <h2>Template</h2>
-                <p>Welcher Lernweg soll entstehen?</p>
-              </div>
-            </div>
-
-            <label>
-              Materialtyp
-              <select name="materialtyp">
-                <option>Forscherheft</option>
-                <option>Arbeitsblatt</option>
-                <option>Lernpfad</option>
-                <option>Erkundungsauftrag</option>
-                <option>Übung / Wiederholung</option>
-              </select>
-            </label>
 
             <fieldset>
-              <legend>Forscherheft-Typ</legend>
+              <legend>Was soll entstehen?</legend>
               <div class="checks vertical">
                 <label><input type="radio" name="templateMode" value="knowledge" checked /> Wissens-Forscherheft</label>
                 <label><input type="radio" name="templateMode" value="experiment" /> Experiment-Forscherheft</label>
@@ -114,84 +48,110 @@
               </div>
             </fieldset>
 
+            <div class="field-row">
+              <label>
+                Fach
+                <input name="fach" type="text" value="Informatik" placeholder="z. B. Biologie" />
+              </label>
+              <label>
+                Klasse
+                <input name="klasse" type="text" value="05d" placeholder="z. B. 6" />
+              </label>
+            </div>
+
+            <div class="field-row">
+              <label>
+                Dauer
+                <input name="dauer" type="text" value="60 Minuten" placeholder="z. B. 90 Minuten" />
+              </label>
+              <label>
+                Niveau
+                <select name="schwierigkeit">
+                  <option value="eher leicht" selected>eher leicht</option>
+                  <option value="mittel">mittel</option>
+                  <option value="anspruchsvoll">anspruchsvoll</option>
+                </select>
+              </label>
+            </div>
+
+            <input name="materialtyp" type="hidden" value="Forscherheft" />
+            <input name="muster" type="hidden" value="passend zum Template" />
+            <input name="textmenge" type="hidden" value="wenig Text, kurze Sätze" />
+            <input name="gestaltung" type="hidden" value="Apple-clean, Sek-I-professionell, nicht kindisch" />
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <span class="step">02</span>
+              <div>
+                <h2>Inhalt</h2>
+                <p>Das ist der eigentliche Materialbrief.</p>
+              </div>
+            </div>
+
             <label>
-              Aufgabenmuster
-              <select name="muster">
-                <option>Input + Lese-Check</option>
-                <option>Erkundungsauftrag</option>
-                <option>Prozessauftrag / Forschertagebuch</option>
-                <option>Gemischt, passend zum Thema wählen</option>
-              </select>
+              Thema
+              <input name="thema" type="text" placeholder="z. B. Sinnesorgane" />
             </label>
 
-            <fieldset>
-              <legend>Output</legend>
-              <div class="checks">
-                <label><input type="checkbox" name="output" value="index.html" checked /> HTML</label>
-                <label><input type="checkbox" name="output" value="material.pdf" checked /> PDF-Druck</label>
-                <label><input type="checkbox" name="output" value="scobees.txt" checked /> Scobees</label>
-                <label><input type="checkbox" name="output" value="meta.json" checked /> Meta</label>
-                <label><input type="checkbox" name="output" value="lehrkraft_notiz.md" checked /> Notiz</label>
-              </div>
-            </fieldset>
+            <label>
+              Stundenziel
+              <textarea name="stundenziel" rows="3" placeholder="Was sollen die Schüler:innen am Ende können?"></textarea>
+            </label>
+
+            <label>
+              Leitfrage / Forscherfrage
+              <textarea name="leitfrage" rows="2" placeholder="z. B. Wie helfen dir deine Sinnesorgane, dich in deiner Umwelt zurechtzufinden?"></textarea>
+            </label>
+
+            <label>
+              Inhalte, Begriffe, Beispiele
+              <textarea name="inhalte" rows="5" placeholder="Begriffe, Beispiele, Regeln, Versuchsaufbau, Links oder Materialinhalte, die vorkommen sollen ..."></textarea>
+            </label>
           </section>
 
           <section class="panel">
             <div class="panel-heading">
               <span class="step">03</span>
               <div>
-                <h2>Stil und Qualität</h2>
-                <p>Damit es fachlich und optisch passt.</p>
+                <h2>Lerngruppe & Abgabe</h2>
+                <p>Nur Besonderheiten eintragen. Der Rest bleibt Standard.</p>
               </div>
             </div>
 
-            <div class="field-row">
-              <label>
-                Textmenge
-                <select name="textmenge">
-                  <option>wenig Text, kurze Sätze</option>
-                  <option>normal, aber klar gegliedert</option>
-                  <option>mehr Inputtext mit Lesehilfen</option>
-                </select>
-              </label>
-              <label>
-                Gestaltung
-                <select name="gestaltung">
-                  <option>Apple-clean, Sek-I-professionell, nicht kindisch</option>
-                  <option>sehr schlicht und arbeitsblattnah</option>
-                  <option>visueller, mit mehr Orientierungselementen</option>
-                </select>
-              </label>
-            </div>
-
             <fieldset>
-              <legend>Besondere Schwerpunkte</legend>
+              <legend>Immer berücksichtigen</legend>
               <div class="checks vertical">
                 <label><input type="checkbox" name="schwerpunkte" value="kleinschrittiger Startauftrag" checked /> kleinschrittiger Start</label>
                 <label><input type="checkbox" name="schwerpunkte" value="Beispiel vor Eigenarbeit" checked /> Beispiel vor Eigenarbeit</label>
                 <label><input type="checkbox" name="schwerpunkte" value="Stern/Planet/Rakete-Differenzierung" checked /> Stern / Planet / Rakete</label>
                 <label><input type="checkbox" name="schwerpunkte" value="Scobees-Abgabehinweis" checked /> Scobees-Abgabehinweis</label>
-                <label><input type="checkbox" name="schwerpunkte" value="Quellen und Urheberrecht mitdenken" /> Quellen / Urheberrecht</label>
               </div>
             </fieldset>
 
             <label>
-              Eigene Inhalte / Begriffe / Beispiele
-              <textarea name="inhalte" rows="4" placeholder="Begriffe, Beispiele, Regeln, Textbausteine oder Materialinhalte, die vorkommen sollen ..."></textarea>
-            </label>
-
-            <label>
-              Scobees-Abgabehinweis
-              <textarea name="scobeesSubmission" rows="3" placeholder="z. B. Lade Seite 4 als Foto hoch und schreibe einen Satz dazu, was du verstanden hast."></textarea>
+              Vorwissen / Stolperstellen
+              <textarea name="vorwissen" rows="3" placeholder="Was können sie schon? Was ist wahrscheinlich noch unsicher?"></textarea>
             </label>
 
             <label>
               Hinweise zur Klasse
-              <textarea name="hinweise" rows="3" placeholder="z. B. Klasse war zuletzt überfordert, wenig Zeit, bestimmte Begriffe vermeiden ..."></textarea>
+              <textarea name="hinweise" rows="3" placeholder="z. B. wenig Text, mehr Schreiblinien, viele brauchen Startbeispiele ..."></textarea>
             </label>
 
+            <label>
+              Scobees-Abgabehinweis
+              <textarea name="scobeesSubmission" rows="3" placeholder="Leer lassen, wenn Standard reicht."></textarea>
+            </label>
+
+            <input type="hidden" name="output" value="index.html" />
+            <input type="hidden" name="output" value="material.pdf" />
+            <input type="hidden" name="output" value="scobees.txt" />
+            <input type="hidden" name="output" value="meta.json" />
+            <input type="hidden" name="output" value="lehrkraft_notiz.md" />
+
             <button id="generateButton" type="button" class="generate-button">Material generieren</button>
-            <p id="generatorMessage" class="generator-message" role="status">Fülle links die Eckdaten aus. Ohne API-Key entsteht automatisch ein solides Basismaterial.</p>
+            <p id="generatorMessage" class="generator-message" role="status">Wähle eine Materialform und fülle den Materialbrief aus. Die Exporte sind fest hinterlegt.</p>
           </section>
         </form>
       </section>
@@ -217,6 +177,6 @@
       </aside>
     </main>
 
-    <script src="./app.js"></script>
+    <script src="./app-v4.js"></script>
   </body>
 </html>
