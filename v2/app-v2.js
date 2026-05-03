@@ -245,6 +245,30 @@ function slugify(value) {
   return (value || "material").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80);
 }
 
+async function downloadPdf(version, data) {
+  printButton.disabled = true;
+  printButton.textContent = "PDF wird erstellt …";
+  try {
+    const res = await fetch("/api/export/pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version, data, title: data?.meta?.title }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = (data?.meta?.title || "material").toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 80) + ".pdf";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  } catch {
+    window.print();
+  } finally {
+    printButton.disabled = false;
+    printButton.textContent = "PDF drucken";
+  }
+}
+
 function ensurePackage() {
   if (!currentPackage) generateFallback();
   return currentPackage;
@@ -277,7 +301,7 @@ acceptBriefButton.addEventListener("click", generateFromBrief);
 makeEasierButton.addEventListener("click", () => createBrief("Mache den Plan einfacher, kleinschrittiger und mit mehr Satzstartern."));
 makeExperimentalButton.addEventListener("click", () => { form.elements.templateMode.value = "experiment"; createBrief("Plane das Material experimenteller mit Vermutung, Beobachtung und Auswertung."); });
 makeResearchButton.addEventListener("click", () => { form.elements.templateMode.value = "exploration"; createBrief("Plane das Material stärker als Recherche/Erkundung mit Quellen, Fundorten und Kriterien."); });
-printButton.addEventListener("click", () => window.print());
+printButton.addEventListener("click", () => downloadPdf("v2", ensurePackage()));
 resetButton.addEventListener("click", reset);
 
 downloadHtmlButton.addEventListener("click", () => { const pkg = ensurePackage(); downloadFile(`${slugify(pkg.meta.subject + "_" + pkg.meta.className + "_" + pkg.meta.title)}.html`, buildFullHtml(pkg), "text/html;charset=utf-8"); });

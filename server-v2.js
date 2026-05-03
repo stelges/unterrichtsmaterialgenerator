@@ -6,6 +6,7 @@ import { buildMaterialPackageV2 } from "./v2/package-builder-v2.js";
 import { checkMaterialQuality } from "./v2/quality-check-v2.js";
 import { buildLearningDesignV3 } from "./v3/builder-v3.js";
 import { checkCoherenceV3 } from "./v3/coherence-check-v3.js";
+import { exportToPdf } from "./export-pdf.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -217,6 +218,31 @@ async function handleV2Generate(req, res) {
   } catch (error) {
     const fallbackResult = safePackage(generationInput);
     sendJson(res, 200, { source: "fallback", message: `KI nicht nutzbar: ${error.message}`, package: fallbackResult.package, quality: fallbackResult.quality, repaired: false });
+  }
+}
+
+// ── PDF export handler ────────────────────────────────────────────────────────
+
+async function handleExportPdf(req, res) {
+  const { version = "v2", data, title } = await readJsonBody(req);
+  if (!data) { sendJson(res, 400, { error: "data fehlt." }); return; }
+  try {
+    const pdf = await exportToPdf(version, data);
+    const slug = String(title || data?.meta?.title || "material")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 80);
+    res.writeHead(200, {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${slug}.pdf"`,
+      "Content-Length": pdf.length,
+    });
+    res.end(pdf);
+  } catch (error) {
+    sendJson(res, 500, { error: `PDF-Export fehlgeschlagen: ${error.message}` });
   }
 }
 
@@ -472,6 +498,7 @@ const server = http.createServer((req, res) => {
   if (req.method === "POST" && req.url === "/api/v2/generate") { handleV2Generate(req, res).catch((error) => sendJson(res, 500, { error: error.message })); return; }
   if (req.method === "POST" && req.url === "/api/v3/brief") { handleV3Brief(req, res).catch((error) => sendJson(res, 500, { error: error.message })); return; }
   if (req.method === "POST" && req.url === "/api/v3/generate") { handleV3Generate(req, res).catch((error) => sendJson(res, 500, { error: error.message })); return; }
+  if (req.method === "POST" && req.url === "/api/export/pdf") { handleExportPdf(req, res).catch((error) => sendJson(res, 500, { error: error.message })); return; }
   if (req.method === "GET" || req.method === "HEAD") { serveStatic(req, res); return; }
   res.writeHead(405); res.end("Method not allowed");
 });

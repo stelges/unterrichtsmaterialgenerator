@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node server-v2.js",
     "start:legacy": "node server.js",
-    "check": "node --check server-v2.js && node --check server.js && node --check app.js && node --check v2/material-schema-v2.js && node --check v2/package-builder-v2.js && node --check v2/quality-check-v2.js && node --check v2/renderer-v2.js && node --check v2/app-v2.js"
+    "setup": "npx playwright install chromium",
+    "check": "node --check server-v2.js && node --check export-pdf.js && node --check v2/material-schema-v2.js && node --check v2/package-builder-v2.js && node --check v2/quality-check-v2.js && node --check v2/renderer-v2.js && node --check v3/v3-schema.js && node --check v3/builder-v3.js && node --check v3/coherence-check-v3.js && node --check v3/renderer-v3.js"
   },
-  "dependencies": {}
+  "dependencies": {
+    "playwright": "^1.59.1"
+  }
 }

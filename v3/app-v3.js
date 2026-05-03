@@ -270,6 +270,30 @@ function slugify(value) {
     .slice(0, 80);
 }
 
+async function downloadPdf(version, data) {
+  printButton.disabled = true;
+  printButton.textContent = "PDF wird erstellt …";
+  try {
+    const res = await fetch("/api/export/pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version, data, title: data?.meta?.title }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = (data?.meta?.title || "material").toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 80) + ".pdf";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  } catch {
+    window.print();
+  } finally {
+    printButton.disabled = false;
+    printButton.textContent = "PDF drucken";
+  }
+}
+
 function ensureDesign() {
   if (!currentDesign) generateFallback();
   return currentDesign;
@@ -301,7 +325,7 @@ function esc(value) {
 briefButton.addEventListener("click", () => createBrief());
 reviseBriefButton?.addEventListener("click", () => createBrief("Überarbeite den Plan anhand des Feedbacks."));
 acceptBriefButton.addEventListener("click", generateFromBrief);
-printButton.addEventListener("click", () => window.print());
+printButton.addEventListener("click", () => downloadPdf("v3", ensureDesign()));
 resetButton.addEventListener("click", reset);
 
 downloadHtmlButton.addEventListener("click", () => {
