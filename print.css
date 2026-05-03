@@ -1,0 +1,183 @@
+@page {
+  size: A4;
+  margin: 0;
+}
+
+.booklet {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 210mm);
+  margin: 0 auto;
+}
+
+.page {
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 14mm;
+  overflow: hidden;
+  page-break-after: always;
+  border-radius: 4px;
+  background:
+    linear-gradient(90deg, rgba(22, 106, 114, 0.035) 1px, transparent 1px),
+    linear-gradient(#fffdf8, #fffaf2);
+  background-size: 36px 36px, auto;
+  box-shadow: 0 12px 34px rgba(45, 39, 30, 0.12);
+}
+
+.page-header,
+.page-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.page-header {
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.page-footer {
+  position: absolute;
+  right: 14mm;
+  bottom: 9mm;
+  left: 14mm;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.page-content {
+  display: grid;
+  gap: 14px;
+}
+
+.cover-page {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.name-box,
+.question-box,
+.input-box,
+.write-box,
+.scobees-box {
+  padding: 13px 15px;
+  border: 1px solid rgba(216, 209, 196, 0.95);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.question-box {
+  display: grid;
+  gap: 5px;
+  border-left: 7px solid var(--teal);
+}
+
+.question-box span {
+  color: var(--teal);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.question-box strong {
+  font-size: 1.08rem;
+}
+
+.write-box {
+  display: grid;
+  gap: 11px;
+  min-height: 110px;
+}
+
+.write-box p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 780;
+}
+
+.write-box span {
+  display: block;
+  min-height: 18px;
+  border-bottom: 1px solid rgba(100, 107, 115, 0.42);
+}
+
+.scobees-box {
+  border-left: 7px solid var(--violet);
+  background: var(--violet-soft);
+}
+
+.scobees-box h3 {
+  margin: 0 0 8px;
+  color: var(--violet);
+}
+
+.scobees-box p {
+  margin: 0;
+}
+
+.material-table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fffaf2;
+}
+
+.material-table th,
+.material-table td {
+  height: 34px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.material-table th {
+  background: var(--teal-soft);
+  color: var(--teal-deep);
+  font-size: 0.82rem;
+}
+
+.no-break {
+  break-inside: avoid;
+}
+
+@media print {
+  .booklet,
+  .page {
+    width: 210mm;
+  }
+
+  .page {
+    min-height: 297mm;
+    margin: 0;
+    padding: 14mm;
+    border-radius: 0;
+    box-shadow: none;
+    page-break-after: always;
+  }
+
+  .booklet {
+    gap: 0;
+  }
+
+  .material-sheet {
+    overflow: visible;
+  }
+
+  .no-break,
+  .task-card,
+  .levels article,
+  .question-box,
+  .write-box,
+  .scobees-box,
+  .material-table {
+    break-inside: avoid;
+  }
+}
