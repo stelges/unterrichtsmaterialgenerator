@@ -7,6 +7,7 @@ import { checkMaterialQuality } from "./v2/quality-check-v2.js";
 import { buildLearningDesignV3 } from "./v3/builder-v3.js";
 import { checkCoherenceV3 } from "./v3/coherence-check-v3.js";
 import { exportToPdf } from "./export-pdf.js";
+import { saveExample, findRelevantExamples, buildExamplePromptSection } from "./examples/example-store.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -139,8 +140,9 @@ function buildV2Instructions() {
   return `Du bist ein erfahrener deutscher Sek-I-Lehrer, Fachleiter und Materialdesigner. Du erzeugst KEIN fertiges Arbeitsblatt als Fließtext, sondern ein MaterialPackage-v2 als JSON. Schreibe ausschließlich Deutsch. Keine fremdsprachigen Zeichen. Keine Generator- oder Designkriterien im Schüler-Check. Jede Aufgabe braucht sichtbares Schülerprodukt und klare Operatoren. Immer Wissensvermittlung, ausgefülltes Beispiel, Anwendung und Sicherung. Gib ausschließlich valides JSON zurück.`;
 }
 
-function buildV2Prompt(input, fallbackPackage) {
-  return `Erzeuge ein MaterialPackage-v2 für folgenden bestätigten Materialbrief:
+function buildV2Prompt(input, fallbackPackage, examples = []) {
+  const exampleSection = buildExamplePromptSection(examples);
+  return `${exampleSection}Erzeuge ein MaterialPackage-v2 für folgenden bestätigten Materialbrief:
 ${JSON.stringify(input, null, 2)}
 
 Orientiere dich an dieser Zielstruktur und fülle sie fachlich besser aus:
@@ -207,13 +209,16 @@ async function handleV2Generate(req, res) {
 
   if (!process.env.OPENAI_API_KEY) {
     const quality = checkMaterialQuality(fallback);
+    saveExample("v2", fallback, quality.score);
     return sendJson(res, 200, { source: "fallback", message: "Kein OPENAI_API_KEY gesetzt. Regelbasierter v2-Entwurf wurde erzeugt.", package: fallback, quality, repaired: false });
   }
 
   try {
-    const generatedPackage = await callJsonModel({ instructions: buildV2Instructions(), prompt: buildV2Prompt(generationInput, fallback) });
+    const examples = findRelevantExamples(generationInput, "v2");
+    const generatedPackage = await callJsonModel({ instructions: buildV2Instructions(), prompt: buildV2Prompt(generationInput, fallback, examples) });
     const quality = checkMaterialQuality(generatedPackage);
     const repaired = await repairPackageIfNeeded(generatedPackage, quality, generationInput);
+    saveExample("v2", repaired.package, repaired.quality.score);
     sendJson(res, 200, { source: "ai", package: repaired.package, quality: repaired.quality, repaired: repaired.repaired, repairError: repaired.repairError || null, repairInstructions: repaired.quality.repairInstructions });
   } catch (error) {
     const fallbackResult = safePackage(generationInput);
@@ -275,8 +280,9 @@ function buildV3MaterialInstructions() {
   return `Du bist ein erfahrener deutscher Sek-I-Fachlehrer. Du erstellst das materialInventory für ein Lerndesign. Jedes Material bekommt eine eindeutige ID (M1, M2, M3 ...). Material-Typen: mini_text, knowledge_box, worked_example, term_bank, data_table, experiment_instruction, research_source, visual_placeholder. Antworte ausschließlich als valides JSON. Keine fremdsprachigen Zeichen.`;
 }
 
-function buildV3MaterialPrompt(input, design) {
-  return `Erstelle das materialInventory für dieses Lerndesign.
+function buildV3MaterialPrompt(input, design, examples = []) {
+  const exampleSection = buildExamplePromptSection(examples);
+  return `${exampleSection}Erstelle das materialInventory für dieses Lerndesign.
 
 Lerndesign:
 ${JSON.stringify(design.learningDesign, null, 2)}
@@ -427,15 +433,17 @@ async function handleV3Generate(req, res) {
 
   if (!process.env.OPENAI_API_KEY) {
     const coherence = checkCoherenceV3(design);
+    saveExample("v3", design, coherence.score);
     return sendJson(res, 200, { source: "fallback", message: "Kein OPENAI_API_KEY. Regelbasierter v3-Entwurf.", design, coherence, repaired: false });
   }
 
+  const examples = findRelevantExamples(generationInput, "v3");
   let source = "ai";
   try {
     // Step 1: Material-Agent generates materialInventory
     const materialResult = await callJsonModel({
       instructions: buildV3MaterialInstructions(),
-      prompt: buildV3MaterialPrompt(generationInput, design),
+      prompt: buildV3MaterialPrompt(generationInput, design, examples),
     });
     if (Array.isArray(materialResult.materialInventory)) {
       design.materialInventory = materialResult.materialInventory;
@@ -477,6 +485,7 @@ async function handleV3Generate(req, res) {
     }
   }
 
+  saveExample("v3", design, coherence.score);
   sendJson(res, 200, { source, design, coherence, repaired });
 }
 
