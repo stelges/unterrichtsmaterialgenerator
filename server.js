@@ -24,6 +24,8 @@ const materialSchema = {
   type: "object",
   additionalProperties: false,
   required: [
+    "templateMode",
+    "variant",
     "title",
     "subtitle",
     "metadata",
@@ -77,7 +79,7 @@ const materialSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "body", "kind"],
+        required: ["title", "body", "kind", "page"],
         properties: {
           title: { type: "string" },
           body: { type: "string" },
