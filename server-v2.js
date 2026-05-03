@@ -67,6 +67,17 @@ function extractJson(text) {
   throw new Error("KI-Antwort enthielt kein JSON-Objekt.");
 }
 
+async function callJsonModel({ instructions, prompt }) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({ model, instructions, input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }] }),
+  });
+  const responseJson = await response.json();
+  if (!response.ok) throw new Error(responseJson.error?.message || "OpenAI-Anfrage fehlgeschlagen.");
+  return extractJson(extractOutputText(responseJson));
+}
+
 function buildFallbackBrief(input = {}) {
   const mode = input.templateMode || "knowledge";
   const topic = input.thema || "Neues Thema";
@@ -76,22 +87,10 @@ function buildFallbackBrief(input = {}) {
     source: "fallback",
     recommendedTemplateMode: mode,
     recommendationTitle: isExperiment ? "Experiment-Forscherheft" : isExploration ? "Erkundungs-Forscherheft" : "Wissens-Forscherheft",
-    reasoning: isExperiment
-      ? "Das Thema eignet sich für Vermutung, Durchführung, Beobachtung und Auswertung."
-      : isExploration
-        ? "Das Thema eignet sich für Recherche, Fundorte, Kriterienvergleich und Bewertung."
-        : "Das Thema braucht zuerst Wissensaufbau, dann Anwendung an Beispielen und Sicherung.",
-    learningPath: isExperiment
-      ? ["Forscherfrage verstehen", "Vermutung formulieren", "Untersuchung durchführen", "Beobachtung notieren", "Auswertung schreiben", "Merksatz sichern"]
-      : isExploration
-        ? ["Erkundungsfrage verstehen", "Suchfrage formulieren", "Quelle/Fundort sichern", "Ergebnisse vergleichen", "Bewertung begründen", "Abgabe prüfen"]
-        : ["Problemfrage verstehen", "Wissenskasten lesen", "Beispiel nachvollziehen", "Aufgaben bearbeiten", "Merksatz formulieren", "Selbstcheck"],
+    reasoning: isExperiment ? "Das Thema eignet sich für Vermutung, Durchführung, Beobachtung und Auswertung." : isExploration ? "Das Thema eignet sich für Recherche, Fundorte, Kriterienvergleich und Bewertung." : "Das Thema braucht zuerst Wissensaufbau, dann Anwendung an Beispielen und Sicherung.",
+    learningPath: isExperiment ? ["Forscherfrage verstehen", "Vermutung formulieren", "Untersuchung durchführen", "Beobachtung notieren", "Auswertung schreiben", "Merksatz sichern"] : isExploration ? ["Erkundungsfrage verstehen", "Suchfrage formulieren", "Quelle/Fundort sichern", "Ergebnisse vergleichen", "Bewertung begründen", "Abgabe prüfen"] : ["Problemfrage verstehen", "Wissenskasten lesen", "Beispiel nachvollziehen", "Aufgaben bearbeiten", "Merksatz formulieren", "Selbstcheck"],
     coreConcept: input.stundenziel || `Die Schülerinnen und Schüler erarbeiten ${topic} selbstständig und begründen ihre Ergebnisse fachlich.`,
-    taskPlan: isExploration
-      ? ["Rechercheauftrag mit Quelle/Fundort", "Kriterien-Tabelle", "Vergleichsaufgabe", "begründete Bewertung"]
-      : isExperiment
-        ? ["Vermutung", "Versuchsprotokoll", "Beobachtungstabelle", "Auswertung mit Fachbegriffen"]
-        : ["Vorhersage", "Begriffstabelle", "Richtig/Falsch mit Korrektur", "Zuordnung mit Begründung", "Merksatz"],
+    taskPlan: isExploration ? ["Rechercheauftrag mit Quelle/Fundort", "Kriterien-Tabelle", "Vergleichsaufgabe", "begründete Bewertung"] : isExperiment ? ["Vermutung", "Versuchsprotokoll", "Beobachtungstabelle", "Auswertung mit Fachbegriffen"] : ["Vorhersage", "Begriffstabelle", "Richtig/Falsch mit Korrektur", "Zuordnung mit Begründung", "Merksatz"],
     misconceptions: ["Behauptung ohne Begründung", "Fachbegriffe werden nur abgeschrieben", "Beispiel und Erklärung werden verwechselt"],
     missingInfo: [],
     suggestedChanges: ["Ein ausgefülltes Beispiel vor die Aufgaben setzen", "sichtbare Antwortfelder direkt unter Aufgaben einplanen", "Schüler-Check auf das Stundenziel ausrichten"],
@@ -100,22 +99,7 @@ function buildFallbackBrief(input = {}) {
 }
 
 function buildBriefInstructions() {
-  return `Du bist ein erfahrener deutscher Sek-I-Fachleiter und Didaktik-Coach.
-Du erstellst noch KEIN Arbeitsblatt. Du prüfst nur den Materialbrief und schlägst einen didaktischen Bauplan vor.
-
-Antworte ausschließlich als valides JSON.
-Keine Markdown-Ausgabe. Keine Kommentare.
-
-Ziel: Der Nutzer soll vor der Generierung sehen, ob der Lernweg, die Aufgabenformate und der Materialtyp sinnvoll sind.
-
-Regeln:
-- Empfiehl einen passenden templateMode: knowledge, experiment, exploration oder worksheet.
-- Begründe kurz, warum dieser Modus passt.
-- Formuliere einen Lernweg mit 4 bis 7 Schritten.
-- Nenne typische Fehlvorstellungen oder Stolperstellen.
-- Plane konkrete Aufgabenformate, keine allgemeinen Phrasen.
-- Markiere fehlende Informationen, aber blockiere nicht unnötig.
-- confirmedBrief muss die ursprünglichen Eingaben enthalten und ggf. mit dem empfohlenen templateMode überschreiben.`;
+  return `Du bist ein erfahrener deutscher Sek-I-Fachleiter und Didaktik-Coach. Du erstellst noch KEIN Arbeitsblatt. Du prüfst nur den Materialbrief und schlägst einen didaktischen Bauplan vor. Antworte ausschließlich als valides JSON. Keine Markdown-Ausgabe. Keine Kommentare.`;
 }
 
 function buildBriefPrompt(input) {
@@ -139,23 +123,9 @@ Pflichtformat:
 
 async function handleV2Brief(req, res) {
   const input = await readJsonBody(req);
-  if (!process.env.OPENAI_API_KEY) {
-    return sendJson(res, 200, { source: "fallback", brief: buildFallbackBrief(input) });
-  }
-
+  if (!process.env.OPENAI_API_KEY) return sendJson(res, 200, { source: "fallback", brief: buildFallbackBrief(input) });
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-      body: JSON.stringify({
-        model,
-        instructions: buildBriefInstructions(),
-        input: [{ role: "user", content: [{ type: "input_text", text: buildBriefPrompt(input) }] }],
-      }),
-    });
-    const responseJson = await response.json();
-    if (!response.ok) throw new Error(responseJson.error?.message || "OpenAI-Anfrage fehlgeschlagen.");
-    const brief = extractJson(extractOutputText(responseJson));
+    const brief = await callJsonModel({ instructions: buildBriefInstructions(), prompt: buildBriefPrompt(input) });
     sendJson(res, 200, { source: "ai", brief });
   } catch (error) {
     sendJson(res, 200, { source: "fallback", message: `Briefing-KI nicht nutzbar: ${error.message}`, brief: buildFallbackBrief(input) });
@@ -163,25 +133,7 @@ async function handleV2Brief(req, res) {
 }
 
 function buildV2Instructions() {
-  return `Du bist ein erfahrener deutscher Sek-I-Lehrer, Fachleiter und Materialdesigner.
-Du erzeugst KEIN fertiges Arbeitsblatt als Fließtext, sondern ein MaterialPackage-v2 als JSON.
-
-Ziel: Unterrichtsmaterial, das Schülerinnen und Schüler fast vollständig ohne mündliche Lehrkraft-Einleitung bearbeiten können.
-
-WICHTIGE REGELN:
-- Schreibe ausschließlich auf Deutsch.
-- Keine fremdsprachigen Zeichen, keine arabischen, kyrillischen oder englischen Satzreste.
-- Keine Generator-, Design- oder Qualitätskriterien im Schüler-Check.
-- Jede Aufgabe braucht ein sichtbares Schülerprodukt: Antwortzeilen, Tabelle, Ankreuzfeld, Korrekturfeld, Beobachtungstabelle oder Satzstarter.
-- Jede Aufgabe braucht einen klaren Operator: markiere, erkläre, ordne zu, begründe, vergleiche, bewerte, notiere, skizziere.
-- Inhalt vor Optik: Der Wissenskasten muss fachlich tragfähig sein.
-- Immer ein ausgefülltes Beispiel vor eigenständiger Anwendung.
-- Bei Erkundungsheften: Recherche/Beobachtung muss explizit vorkommen, immer mit Quelle/Fundort/Beleg und Kriterien.
-- Bei Experimentheften: Vermutung, Material, Durchführung, Beobachtung und Auswertung klar trennen.
-- Bei Wissensheften: Wissenskasten, Fachbegriffe, Beispiel, Anwendung und Merksatz.
-- Klasse 5/6: kurze Sätze, klare Schritte, konkrete Alltagssituationen, Satzstarter.
-
-Gib ausschließlich valides JSON zurück. Kein Markdown. Kein Kommentar.`;
+  return `Du bist ein erfahrener deutscher Sek-I-Lehrer, Fachleiter und Materialdesigner. Du erzeugst KEIN fertiges Arbeitsblatt als Fließtext, sondern ein MaterialPackage-v2 als JSON. Schreibe ausschließlich Deutsch. Keine fremdsprachigen Zeichen. Keine Generator- oder Designkriterien im Schüler-Check. Jede Aufgabe braucht sichtbares Schülerprodukt und klare Operatoren. Immer Wissensvermittlung, ausgefülltes Beispiel, Anwendung und Sicherung. Gib ausschließlich valides JSON zurück.`;
 }
 
 function buildV2Prompt(input, fallbackPackage) {
@@ -191,20 +143,52 @@ ${JSON.stringify(input, null, 2)}
 Orientiere dich an dieser Zielstruktur und fülle sie fachlich besser aus:
 ${JSON.stringify(fallbackPackage, null, 2)}
 
-Pflichtstruktur:
-- schemaVersion: "2.0.0"
-- meta mit title, subject, className, duration, templateMode, pageCount, level, createdAt
-- didacticPlan mit learningGoal, guidingQuestion, coreConcept, learningPath, prerequisites, misconceptions, successCriteria
-- knowledgeCore mit shortText, terms, workedExample, everydayConnections
-- pages: exakt pageCount Seiten
-- Jede Seite hat pageNumber, purpose, title, blocks
-- Blocks dürfen nur diese Typen nutzen:
-  goal_box, student_workflow, problem_impulse, knowledge_box, worked_example, term_table,
-  prediction_task, true_false_correction, matching_table_task, short_answer_task,
-  research_task, experiment_protocol, observation_table, merksatz_task, reflection_task,
-  self_check, scobees_submission
+Pflichtstruktur: schemaVersion, meta, didacticPlan, knowledgeCore, pages, teacherNotes, scobees. Pages exakt pageCount. Blocks nur bekannte v2-Blocktypen. Inhalt muss didaktisch wirksam sein.`;
+}
 
-Achte darauf, dass der Inhalt didaktisch wirksam ist und nicht oberflächlich bleibt.`;
+function buildRepairInstructions() {
+  return `Du bist der Repair-Agent für ein deutsches Sek-I-Unterrichtsmaterial. Du erhältst ein MaterialPackage-v2 und einen Qualitätsbericht. Repariere das JSON, ohne das Schema zu verlassen. Antworte ausschließlich mit dem vollständigen reparierten MaterialPackage als valides JSON.
+
+Reparaturregeln:
+- Alle high severity issues müssen behoben werden.
+- Keine fremdsprachigen Zeichen.
+- Keine Generator-/Template-Kriterien im Schüler-Check.
+- Jede Aufgabe braucht sichtbares Schülerprodukt.
+- Jede Aufgabe braucht einen klaren Schülerauftrag.
+- Behalte pageCount exakt bei.
+- Behalte die Blocktypen aus dem v2-Schema.
+- Verbessere fachliche Substanz, aber mache keine langen Textwüsten.`;
+}
+
+function buildRepairPrompt(pkg, quality, input) {
+  return `Repariere dieses MaterialPackage-v2.
+
+Materialbrief:
+${JSON.stringify(input, null, 2)}
+
+Qualitätsbericht:
+${JSON.stringify(quality, null, 2)}
+
+MaterialPackage:
+${JSON.stringify(pkg, null, 2)}
+
+Gib ausschließlich das vollständige reparierte MaterialPackage als JSON zurück.`;
+}
+
+async function repairPackageIfNeeded(pkg, quality, input) {
+  const needsRepair = quality.issues.some((issue) => issue.severity === "high") || quality.score < 85;
+  if (!needsRepair || !process.env.OPENAI_API_KEY) return { package: pkg, quality, repaired: false };
+
+  try {
+    const repairedPackage = await callJsonModel({ instructions: buildRepairInstructions(), prompt: buildRepairPrompt(pkg, quality, input) });
+    const repairedQuality = checkMaterialQuality(repairedPackage);
+    if (repairedQuality.score >= quality.score) {
+      return { package: repairedPackage, quality: repairedQuality, repaired: true };
+    }
+  } catch (error) {
+    return { package: pkg, quality, repaired: false, repairError: error.message };
+  }
+  return { package: pkg, quality, repaired: false };
 }
 
 function safePackage(input) {
@@ -220,25 +204,17 @@ async function handleV2Generate(req, res) {
 
   if (!process.env.OPENAI_API_KEY) {
     const quality = checkMaterialQuality(fallback);
-    return sendJson(res, 200, { source: "fallback", message: "Kein OPENAI_API_KEY gesetzt. Regelbasierter v2-Entwurf wurde erzeugt.", package: fallback, quality });
+    return sendJson(res, 200, { source: "fallback", message: "Kein OPENAI_API_KEY gesetzt. Regelbasierter v2-Entwurf wurde erzeugt.", package: fallback, quality, repaired: false });
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-      body: JSON.stringify({ model, instructions: buildV2Instructions(), input: [{ role: "user", content: [{ type: "input_text", text: buildV2Prompt(generationInput, fallback) }] }] }),
-    });
-
-    const responseJson = await response.json();
-    if (!response.ok) throw new Error(responseJson.error?.message || "OpenAI-Anfrage fehlgeschlagen.");
-
-    const generatedPackage = extractJson(extractOutputText(responseJson));
+    const generatedPackage = await callJsonModel({ instructions: buildV2Instructions(), prompt: buildV2Prompt(generationInput, fallback) });
     const quality = checkMaterialQuality(generatedPackage);
-    sendJson(res, 200, { source: "ai", package: generatedPackage, quality, repairInstructions: quality.repairInstructions });
+    const repaired = await repairPackageIfNeeded(generatedPackage, quality, generationInput);
+    sendJson(res, 200, { source: "ai", package: repaired.package, quality: repaired.quality, repaired: repaired.repaired, repairError: repaired.repairError || null, repairInstructions: repaired.quality.repairInstructions });
   } catch (error) {
     const fallbackResult = safePackage(generationInput);
-    sendJson(res, 200, { source: "fallback", message: `KI nicht nutzbar: ${error.message}`, package: fallbackResult.package, quality: fallbackResult.quality });
+    sendJson(res, 200, { source: "fallback", message: `KI nicht nutzbar: ${error.message}`, package: fallbackResult.package, quality: fallbackResult.quality, repaired: false });
   }
 }
 
@@ -256,14 +232,8 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer((req, res) => {
-  if (req.method === "POST" && req.url === "/api/v2/brief") {
-    handleV2Brief(req, res).catch((error) => sendJson(res, 500, { error: error.message }));
-    return;
-  }
-  if (req.method === "POST" && req.url === "/api/v2/generate") {
-    handleV2Generate(req, res).catch((error) => sendJson(res, 500, { error: error.message }));
-    return;
-  }
+  if (req.method === "POST" && req.url === "/api/v2/brief") { handleV2Brief(req, res).catch((error) => sendJson(res, 500, { error: error.message })); return; }
+  if (req.method === "POST" && req.url === "/api/v2/generate") { handleV2Generate(req, res).catch((error) => sendJson(res, 500, { error: error.message })); return; }
   if (req.method === "GET" || req.method === "HEAD") { serveStatic(req, res); return; }
   res.writeHead(405); res.end("Method not allowed");
 });
