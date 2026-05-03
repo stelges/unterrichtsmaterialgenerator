@@ -17,6 +17,7 @@ const mimeTypes = {
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".md": "text/markdown; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
 };
 
 const materialSchema = {
@@ -27,30 +28,37 @@ const materialSchema = {
     "subtitle",
     "metadata",
     "goal",
+    "guidingQuestion",
     "intro",
     "example",
+    "sections",
     "tasks",
     "differentiation",
     "reflection",
     "qualityCheck",
+    "scobeesSubmission",
     "teacherNote",
   ],
   properties: {
+    templateMode: { type: "string", enum: ["knowledge", "experiment", "exploration", "worksheet"] },
+    variant: { type: "string" },
     title: { type: "string" },
     subtitle: { type: "string" },
     metadata: {
       type: "object",
       additionalProperties: false,
-      required: ["subject", "className", "type", "level", "pattern"],
+      required: ["subject", "className", "type", "level", "pattern", "duration"],
       properties: {
         subject: { type: "string" },
         className: { type: "string" },
         type: { type: "string" },
         level: { type: "string" },
         pattern: { type: "string" },
+        duration: { type: "string" },
       },
     },
     goal: { type: "string" },
+    guidingQuestion: { type: "string" },
     intro: { type: "string" },
     example: {
       type: "object",
@@ -62,10 +70,26 @@ const materialSchema = {
         sample: { type: "string" },
       },
     },
+    sections: {
+      type: "array",
+      minItems: 2,
+      maxItems: 6,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "body", "kind"],
+        properties: {
+          title: { type: "string" },
+          body: { type: "string" },
+          kind: { type: "string", enum: ["cover", "write", "input", "tasks", "table", "reflection", "check"] },
+          page: { type: "number" },
+        },
+      },
+    },
     tasks: {
       type: "array",
       minItems: 3,
-      maxItems: 5,
+      maxItems: 6,
       items: {
         type: "object",
         additionalProperties: false,
@@ -95,6 +119,7 @@ const materialSchema = {
       maxItems: 6,
       items: { type: "string" },
     },
+    scobeesSubmission: { type: "string" },
     teacherNote: {
       type: "object",
       additionalProperties: false,
@@ -125,7 +150,7 @@ function loadEnv(filePath) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
     const [key, ...rest] = trimmed.split("=");
-    const value = rest.join("=").replace(/^[']|[']$/g, "").replace(/^["]|["]$/g, "");
+    const value = rest.join("=").replace(/^[']|[']$/g, "").replace(/^[\"]|[\"]$/g, "");
     if (!process.env[key]) process.env[key] = value;
   }
 }
@@ -136,16 +161,27 @@ function compactInput(input = {}) {
     klasse: input.klasse || "",
     thema: input.thema || "",
     stundenziel: input.stundenziel || "",
+    leitfrage: input.leitfrage || "",
+    dauer: input.dauer || "",
     vorwissen: input.vorwissen || "",
     materialtyp: input.materialtyp || "",
+    templateMode: input.templateMode || "knowledge",
+    variant: input.variant || "4p",
     muster: input.muster || "",
     schwierigkeit: input.schwierigkeit || "",
     textmenge: input.textmenge || "",
     gestaltung: input.gestaltung || "",
     schwerpunkte: Array.isArray(input.schwerpunkte) ? input.schwerpunkte : [],
     inhalte: input.inhalte || "",
+    scobeesSubmission: input.scobeesSubmission || "",
     hinweise: input.hinweise || "",
   };
+}
+
+function defaultGuidingQuestion(mode, topic) {
+  if (mode === "experiment") return `Was können wir zu ${topic} beobachten und erklären?`;
+  if (mode === "exploration") return `Wie können wir ${topic} sinnvoll erkunden und bewerten?`;
+  return `Was ist an ${topic} wichtig und wie kann ich es anwenden?`;
 }
 
 function makeFallbackMaterial(input) {
@@ -153,6 +189,13 @@ function makeFallbackMaterial(input) {
   const topic = data.thema || "Neues Thema";
   const subject = data.fach || "Fach";
   const className = data.klasse || "Klasse";
+  const mode = data.templateMode || "knowledge";
+  const modeLabel = {
+    knowledge: "Wissens-Forscherheft",
+    experiment: "Experiment-Forscherheft",
+    exploration: "Erkundungs-Forscherheft",
+    worksheet: "Arbeitsblatt",
+  }[mode] || "Arbeitsmaterial";
   const goal = data.stundenziel || `Ich kann ${topic} mit eigenen Worten erklären und eine passende Aufgabe lösen.`;
   const terms = (data.inhalte || "")
     .split(/\n|;|,/)
@@ -160,24 +203,39 @@ function makeFallbackMaterial(input) {
     .filter(Boolean)
     .slice(0, 4);
   const visibleTerms = terms.length ? terms.join(", ") : `${topic}, Beispiel, Regel`;
+  const pageCount = data.variant === "6p" ? 6 : data.variant === "2p" ? 2 : 4;
+
+  const sectionBase = [
+    { title: "Cover und Lernziel", body: `Heute geht es um ${topic}.`, kind: "cover", page: 1 },
+    { title: "Einstieg und Vorwissen", body: "Aktiviere dein Vorwissen und notiere erste Ideen.", kind: "write", page: 2 },
+    { title: "Input und Begriffe", body: `Wichtige Begriffe: ${visibleTerms}.`, kind: "input", page: 3 },
+    { title: "Verstehen und Anwenden", body: "Bearbeite die Aufgaben und nutze das Beispiel.", kind: "tasks", page: 4 },
+    { title: "Sicherung", body: "Formuliere einen Merksatz in eigenen Worten.", kind: "write", page: 5 },
+    { title: "Reflexion", body: "Prüfe, was du verstanden hast.", kind: "reflection", page: 6 },
+  ];
 
   return {
+    templateMode: mode,
+    variant: data.variant,
     title: topic,
     subtitle: `${subject} · ${className}`,
     metadata: {
       subject,
       className,
-      type: data.materialtyp || "Arbeitsmaterial",
+      type: modeLabel,
       level: data.schwierigkeit || "eher leicht",
-      pattern: data.muster || "Input + Lese-Check",
+      pattern: data.muster || modeLabel,
+      duration: data.dauer || "60 Minuten",
     },
     goal,
+    guidingQuestion: data.leitfrage || defaultGuidingQuestion(mode, topic),
     intro: `Heute arbeitest du zu ${topic}. Starte mit dem Beispiel und bearbeite die Aufgaben der Reihe nach.`,
     example: {
       title: "So kann eine gute Antwort aussehen",
       body: `Eine gute Antwort nennt einen wichtigen Begriff zu ${topic}, erklärt ihn kurz und nutzt ein Beispiel.`,
       sample: `Ich erkenne ${topic}, weil ich ein Merkmal finde und meine Entscheidung begründe.`,
     },
+    sections: sectionBase.slice(0, pageCount),
     tasks: [
       {
         label: "Start",
@@ -215,6 +273,9 @@ function makeFallbackMaterial(input) {
       "Ich habe mindestens eine Antwort begründet.",
       "Ich habe meine Arbeit noch einmal geprüft.",
     ],
+    scobeesSubmission:
+      data.scobeesSubmission ||
+      "Lade dein bearbeitetes PDF oder ein Foto deiner wichtigsten Ergebnisse in Scobees hoch. Schreibe dazu einen Satz: Das habe ich heute verstanden.",
     teacherNote: {
       flow: [
         "Ziel kurz klären und Beispiel gemeinsam lesen.",
@@ -249,12 +310,18 @@ function buildInstructions() {
 Erzeuge ein direkt nutzbares Unterrichtsmaterial als JSON.
 Regeln:
 - Schreibe auf Deutsch.
+- Nutze templateMode exakt aus der Eingabe: knowledge, experiment, exploration oder worksheet.
+- Wissens-Forscherheft: Problemfrage → Input → Verstehen → Anwenden → Sichern → Reflektieren.
+- Experiment-Forscherheft: Forscherfrage → Vermutung → Durchführung → Beobachtung → Auswertung → Merksatz.
+- Erkundungs-Forscherheft: Auftrag → Kriterien → Erkunden → Sammeln → Vergleichen → Bewerten.
 - Keine langen Frontaltexte.
 - Schülersprache, konkrete Aufgaben, klare Operatoren.
 - Klasse 5: kurze Sätze, sichtbare Handlungsschritte, wenig offene Recherche, mehr Zuordnung/Begründung.
 - Immer ein Beispiel vor Eigenarbeit.
-- Immer 3 bis 5 Hauptaufgaben.
+- Immer 3 bis 6 Hauptaufgaben.
 - Immer Differenzierung mit Stern, Planet und Rakete.
+- Immer sections für 2, 4 oder 6 Seiten passend zur Eingabe.
+- Immer einen Scobees-Abgabehinweis formulieren.
 - Freundlich-visuell und professionell denken, aber kein HTML und keine Markdown-Ausgabe.
 - Keine Namenssignatur, keine Marke nennen.
 - Inhalt fachlich korrekt halten und Unsicherheiten vermeiden.`;
