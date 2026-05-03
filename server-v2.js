@@ -67,6 +67,101 @@ function extractJson(text) {
   throw new Error("KI-Antwort enthielt kein JSON-Objekt.");
 }
 
+function buildFallbackBrief(input = {}) {
+  const mode = input.templateMode || "knowledge";
+  const topic = input.thema || "Neues Thema";
+  const isExperiment = mode === "experiment";
+  const isExploration = mode === "exploration";
+  return {
+    source: "fallback",
+    recommendedTemplateMode: mode,
+    recommendationTitle: isExperiment ? "Experiment-Forscherheft" : isExploration ? "Erkundungs-Forscherheft" : "Wissens-Forscherheft",
+    reasoning: isExperiment
+      ? "Das Thema eignet sich für Vermutung, Durchführung, Beobachtung und Auswertung."
+      : isExploration
+        ? "Das Thema eignet sich für Recherche, Fundorte, Kriterienvergleich und Bewertung."
+        : "Das Thema braucht zuerst Wissensaufbau, dann Anwendung an Beispielen und Sicherung.",
+    learningPath: isExperiment
+      ? ["Forscherfrage verstehen", "Vermutung formulieren", "Untersuchung durchführen", "Beobachtung notieren", "Auswertung schreiben", "Merksatz sichern"]
+      : isExploration
+        ? ["Erkundungsfrage verstehen", "Suchfrage formulieren", "Quelle/Fundort sichern", "Ergebnisse vergleichen", "Bewertung begründen", "Abgabe prüfen"]
+        : ["Problemfrage verstehen", "Wissenskasten lesen", "Beispiel nachvollziehen", "Aufgaben bearbeiten", "Merksatz formulieren", "Selbstcheck"],
+    coreConcept: input.stundenziel || `Die Schülerinnen und Schüler erarbeiten ${topic} selbstständig und begründen ihre Ergebnisse fachlich.`,
+    taskPlan: isExploration
+      ? ["Rechercheauftrag mit Quelle/Fundort", "Kriterien-Tabelle", "Vergleichsaufgabe", "begründete Bewertung"]
+      : isExperiment
+        ? ["Vermutung", "Versuchsprotokoll", "Beobachtungstabelle", "Auswertung mit Fachbegriffen"]
+        : ["Vorhersage", "Begriffstabelle", "Richtig/Falsch mit Korrektur", "Zuordnung mit Begründung", "Merksatz"],
+    misconceptions: ["Behauptung ohne Begründung", "Fachbegriffe werden nur abgeschrieben", "Beispiel und Erklärung werden verwechselt"],
+    missingInfo: [],
+    suggestedChanges: ["Ein ausgefülltes Beispiel vor die Aufgaben setzen", "sichtbare Antwortfelder direkt unter Aufgaben einplanen", "Schüler-Check auf das Stundenziel ausrichten"],
+    confirmedBrief: { ...input, templateMode: mode, didacticPlanConfirmed: true },
+  };
+}
+
+function buildBriefInstructions() {
+  return `Du bist ein erfahrener deutscher Sek-I-Fachleiter und Didaktik-Coach.
+Du erstellst noch KEIN Arbeitsblatt. Du prüfst nur den Materialbrief und schlägst einen didaktischen Bauplan vor.
+
+Antworte ausschließlich als valides JSON.
+Keine Markdown-Ausgabe. Keine Kommentare.
+
+Ziel: Der Nutzer soll vor der Generierung sehen, ob der Lernweg, die Aufgabenformate und der Materialtyp sinnvoll sind.
+
+Regeln:
+- Empfiehl einen passenden templateMode: knowledge, experiment, exploration oder worksheet.
+- Begründe kurz, warum dieser Modus passt.
+- Formuliere einen Lernweg mit 4 bis 7 Schritten.
+- Nenne typische Fehlvorstellungen oder Stolperstellen.
+- Plane konkrete Aufgabenformate, keine allgemeinen Phrasen.
+- Markiere fehlende Informationen, aber blockiere nicht unnötig.
+- confirmedBrief muss die ursprünglichen Eingaben enthalten und ggf. mit dem empfohlenen templateMode überschreiben.`;
+}
+
+function buildBriefPrompt(input) {
+  return `Analysiere diesen Materialbrief und erstelle einen didaktischen Bauplan als JSON:
+${JSON.stringify(input, null, 2)}
+
+Pflichtformat:
+{
+  "recommendedTemplateMode": "knowledge|experiment|exploration|worksheet",
+  "recommendationTitle": "string",
+  "reasoning": "string",
+  "learningPath": ["string"],
+  "coreConcept": "string",
+  "taskPlan": ["string"],
+  "misconceptions": ["string"],
+  "missingInfo": ["string"],
+  "suggestedChanges": ["string"],
+  "confirmedBrief": { ... }
+}`;
+}
+
+async function handleV2Brief(req, res) {
+  const input = await readJsonBody(req);
+  if (!process.env.OPENAI_API_KEY) {
+    return sendJson(res, 200, { source: "fallback", brief: buildFallbackBrief(input) });
+  }
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      body: JSON.stringify({
+        model,
+        instructions: buildBriefInstructions(),
+        input: [{ role: "user", content: [{ type: "input_text", text: buildBriefPrompt(input) }] }],
+      }),
+    });
+    const responseJson = await response.json();
+    if (!response.ok) throw new Error(responseJson.error?.message || "OpenAI-Anfrage fehlgeschlagen.");
+    const brief = extractJson(extractOutputText(responseJson));
+    sendJson(res, 200, { source: "ai", brief });
+  } catch (error) {
+    sendJson(res, 200, { source: "fallback", message: `Briefing-KI nicht nutzbar: ${error.message}`, brief: buildFallbackBrief(input) });
+  }
+}
+
 function buildV2Instructions() {
   return `Du bist ein erfahrener deutscher Sek-I-Lehrer, Fachleiter und Materialdesigner.
 Du erzeugst KEIN fertiges Arbeitsblatt als Fließtext, sondern ein MaterialPackage-v2 als JSON.
@@ -90,7 +185,7 @@ Gib ausschließlich valides JSON zurück. Kein Markdown. Kein Kommentar.`;
 }
 
 function buildV2Prompt(input, fallbackPackage) {
-  return `Erzeuge ein MaterialPackage-v2 für folgenden Materialbrief:
+  return `Erzeuge ein MaterialPackage-v2 für folgenden bestätigten Materialbrief:
 ${JSON.stringify(input, null, 2)}
 
 Orientiere dich an dieser Zielstruktur und fülle sie fachlich besser aus:
@@ -109,25 +204,6 @@ Pflichtstruktur:
   research_task, experiment_protocol, observation_table, merksatz_task, reflection_task,
   self_check, scobees_submission
 
-Block-Formate:
-- goal_box: {id,type,text}
-- student_workflow: {id,type,steps:[string]}
-- problem_impulse: {id,type,question,prompt}
-- knowledge_box: {id,type,title,text}
-- worked_example: {id,type,situation,observation,explanation}
-- term_table: {id,type,terms:[{term,explanation,example}]}
-- prediction_task: {id,type,title,prompt,options:[string],sentenceStarter}
-- true_false_correction: {id,type,title,items:[{statement,expected,correctionStarter}]}
-- matching_table_task: {id,type,title,columns:[string],rows:[string]}
-- short_answer_task: {id,type,title,prompt,answerLines,sentenceStarter}
-- research_task: {id,type,title,prompt,criteria:[string],rows:number}
-- experiment_protocol: {id,type,title,question,fields:[string]}
-- observation_table: {id,type,title,columns:[string],rows:number}
-- merksatz_task: {id,type,title,prompt,sentenceStarter}
-- reflection_task: {id,type,title,prompts:[string]}
-- self_check: {id,type,items:[string]}
-- scobees_submission: {id,type,text}
-
 Achte darauf, dass der Inhalt didaktisch wirksam ist und nicht oberflächlich bleibt.`;
 }
 
@@ -139,58 +215,30 @@ function safePackage(input) {
 
 async function handleV2Generate(req, res) {
   const input = await readJsonBody(req);
-  const fallback = buildMaterialPackageV2(input);
+  const generationInput = input.confirmedBrief || input;
+  const fallback = buildMaterialPackageV2(generationInput);
 
   if (!process.env.OPENAI_API_KEY) {
     const quality = checkMaterialQuality(fallback);
-    return sendJson(res, 200, {
-      source: "fallback",
-      message: "Kein OPENAI_API_KEY gesetzt. Regelbasierter v2-Entwurf wurde erzeugt.",
-      package: fallback,
-      quality,
-    });
+    return sendJson(res, 200, { source: "fallback", message: "Kein OPENAI_API_KEY gesetzt. Regelbasierter v2-Entwurf wurde erzeugt.", package: fallback, quality });
   }
 
   try {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model,
-        instructions: buildV2Instructions(),
-        input: [
-          {
-            role: "user",
-            content: [{ type: "input_text", text: buildV2Prompt(input, fallback) }],
-          },
-        ],
-      }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      body: JSON.stringify({ model, instructions: buildV2Instructions(), input: [{ role: "user", content: [{ type: "input_text", text: buildV2Prompt(generationInput, fallback) }] }] }),
     });
 
     const responseJson = await response.json();
     if (!response.ok) throw new Error(responseJson.error?.message || "OpenAI-Anfrage fehlgeschlagen.");
 
-    const outputText = extractOutputText(responseJson);
-    const generatedPackage = extractJson(outputText);
+    const generatedPackage = extractJson(extractOutputText(responseJson));
     const quality = checkMaterialQuality(generatedPackage);
-
-    sendJson(res, 200, {
-      source: "ai",
-      package: generatedPackage,
-      quality,
-      repairInstructions: quality.repairInstructions,
-    });
+    sendJson(res, 200, { source: "ai", package: generatedPackage, quality, repairInstructions: quality.repairInstructions });
   } catch (error) {
-    const fallbackResult = safePackage(input);
-    sendJson(res, 200, {
-      source: "fallback",
-      message: `KI nicht nutzbar: ${error.message}`,
-      package: fallbackResult.package,
-      quality: fallbackResult.quality,
-    });
+    const fallbackResult = safePackage(generationInput);
+    sendJson(res, 200, { source: "fallback", message: `KI nicht nutzbar: ${error.message}`, package: fallbackResult.package, quality: fallbackResult.quality });
   }
 }
 
@@ -198,19 +246,9 @@ function serveStatic(req, res) {
   const url = new URL(req.url, `http://localhost:${port}`);
   const requestedPath = decodeURIComponent(url.pathname === "/" ? "/v2.html" : url.pathname);
   const filePath = path.normalize(path.join(__dirname, requestedPath));
-
-  if (!filePath.startsWith(__dirname)) {
-    res.writeHead(403);
-    res.end("Forbidden");
-    return;
-  }
-
+  if (!filePath.startsWith(__dirname)) { res.writeHead(403); res.end("Forbidden"); return; }
   fs.readFile(filePath, (error, content) => {
-    if (error) {
-      res.writeHead(404);
-      res.end("Not found");
-      return;
-    }
+    if (error) { res.writeHead(404); res.end("Not found"); return; }
     const ext = path.extname(filePath);
     res.writeHead(200, { "Content-Type": mimeTypes[ext] || "application/octet-stream" });
     res.end(content);
@@ -218,18 +256,16 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  if (req.method === "POST" && req.url === "/api/v2/brief") {
+    handleV2Brief(req, res).catch((error) => sendJson(res, 500, { error: error.message }));
+    return;
+  }
   if (req.method === "POST" && req.url === "/api/v2/generate") {
     handleV2Generate(req, res).catch((error) => sendJson(res, 500, { error: error.message }));
     return;
   }
-
-  if (req.method === "GET" || req.method === "HEAD") {
-    serveStatic(req, res);
-    return;
-  }
-
-  res.writeHead(405);
-  res.end("Method not allowed");
+  if (req.method === "GET" || req.method === "HEAD") { serveStatic(req, res); return; }
+  res.writeHead(405); res.end("Method not allowed");
 });
 
 server.listen(port, () => {
