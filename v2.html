@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./v2/v2.css" />
     <style>
-      .quality-score{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0}.quality-score.good{background:#ecfdf5;border-color:#bbf7d0;color:#166534}.quality-score.medium{background:#fffbeb;border-color:#fde68a;color:#92400e}.quality-score.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}.quality-score strong{font-size:1.35rem}.v2-help{padding:12px 14px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;line-height:1.45}.v2-actions{display:flex;flex-wrap:wrap;gap:8px}.v2-actions button{flex:1 1 120px}.agent-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}.agent-step{padding:12px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color:#64748b}.agent-step strong{display:block;color:#111827}.agent-step.active{border-color:#2563eb;background:#eff6ff;color:#1d4ed8}.brief-card{display:grid;gap:12px}.brief-card h3{margin:0}.brief-grid{display:grid;gap:10px}.brief-pill-list{display:flex;flex-wrap:wrap;gap:8px}.brief-pill{padding:6px 10px;border-radius:999px;background:#f1f5f9;border:1px solid #cbd5e1;font-size:.85rem}.agent-buttons{display:flex;flex-wrap:wrap;gap:8px}.agent-buttons button{flex:1 1 140px}.muted-box{padding:12px;border-radius:14px;background:#f8fafc;border:1px dashed #cbd5e1;color:#475569;line-height:1.45}.hidden{display:none!important}@media print{.agent-steps,.brief-card,.muted-box{display:none!important}}
+      .quality-score{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0}.quality-score.good{background:#ecfdf5;border-color:#bbf7d0;color:#166534}.quality-score.medium{background:#fffbeb;border-color:#fde68a;color:#92400e}.quality-score.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}.quality-score strong{font-size:1.35rem}.v2-help{padding:12px 14px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;line-height:1.45}.v2-actions{display:flex;flex-wrap:wrap;gap:8px}.v2-actions button{flex:1 1 120px}.agent-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}.agent-step{padding:12px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color:#64748b}.agent-step strong{display:block;color:#111827}.agent-step.active{border-color:#2563eb;background:#eff6ff;color:#1d4ed8}.brief-card{display:grid;gap:12px}.brief-card h3{margin:0}.brief-grid{display:grid;gap:10px}.brief-pill-list{display:flex;flex-wrap:wrap;gap:8px}.brief-pill{padding:6px 10px;border-radius:999px;background:#f1f5f9;border:1px solid #cbd5e1;font-size:.85rem}.agent-buttons{display:flex;flex-wrap:wrap;gap:8px}.agent-buttons button{flex:1 1 140px}.muted-box{padding:12px;border-radius:14px;background:#f8fafc;border:1px dashed #cbd5e1;color:#475569;line-height:1.45}.feedback-box{display:grid;gap:8px;padding:12px;border-radius:14px;background:#fff;border:1px solid #dbe3ef}.hidden{display:none!important}@media print{.agent-steps,.brief-card,.muted-box,.feedback-box{display:none!important}}
     </style>
   </head>
   <body>
@@ -23,7 +23,7 @@
 
         <div class="agent-steps" aria-label="Agentenworkflow">
           <div class="agent-step active" id="stepBrief"><strong>1. Materialbrief</strong><span>Thema & Ziel klären</span></div>
-          <div class="agent-step" id="stepPlan"><strong>2. Didaktik-Plan</strong><span>Agent prüft Lernweg</span></div>
+          <div class="agent-step" id="stepPlan"><strong>2. Didaktik-Plan</strong><span>Plan prüfen & verfeinern</span></div>
           <div class="agent-step" id="stepCompile"><strong>3. Kompilieren</strong><span>MaterialPackage bauen</span></div>
         </div>
 
@@ -49,7 +49,7 @@
 
             <label>Thema<input name="thema" value="Wärmeausdehnung" /></label>
             <label>Was sollen die SuS am Ende können?<textarea name="stundenziel" rows="4">Du erklärst mit eigenen Worten, dass sich viele Stoffe bei Erwärmung ausdehnen und bei Abkühlung zusammenziehen. Du kannst einfache Alltagsbeispiele zuordnen und begründen.</textarea></label>
-            <label>Leitfrage / Problemfrage<textarea name="leitfrage" rows="2">Warum passen Deckel, Schienen oder Kabel bei Wärme manchmal nicht mehr so gut?</textarea></label>
+            <label>Stundenfrage / Problemfrage für die erste Seite<textarea name="leitfrage" rows="2">Warum passen Deckel, Schienen oder Kabel bei Wärme manchmal nicht mehr so gut?</textarea></label>
             <label>Inhalte, Begriffe, Beispiele, Material<input name="inhalte" placeholder="Optional: Begriffe, Beispiele, Versuch, Links, Buchseiten ..." /></label>
             <label>Hinweise zur Klasse / Stolperstellen<textarea name="hinweise" rows="3" placeholder="z. B. wenig Text, viele brauchen Satzstarter, Klasse arbeitet selbstständig ..."></textarea></label>
 
@@ -67,10 +67,14 @@
               <span class="step">02</span>
               <div>
                 <h2>Vorschlag des Didaktik-Agenten</h2>
-                <p>Erst wenn dieser Plan passt, wird das Material kompiliert.</p>
+                <p>Du kannst den Vorschlag kommentieren. Erst wenn der Plan passt, wird kompiliert.</p>
               </div>
             </div>
             <div id="briefOutput" class="brief-card muted-box">Noch kein Plan erstellt.</div>
+            <div class="feedback-box">
+              <label>Dein Feedback zum Vorschlag<textarea id="briefFeedback" rows="3" placeholder="z. B. Die erste Seite soll stärker neugierig machen. Weniger Richtig/Falsch, mehr Alltag. Mehr Schreibfläche. Kein Experiment."></textarea></label>
+              <button id="reviseBriefButton" type="button" class="secondary">Vorschlag mit Feedback überarbeiten</button>
+            </div>
             <div class="agent-buttons">
               <button id="acceptBriefButton" type="button" class="generate-button">Plan übernehmen & Material kompilieren</button>
               <button id="makeEasierButton" type="button" class="secondary">Einfacher</button>
