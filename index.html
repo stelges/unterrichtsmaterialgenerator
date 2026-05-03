@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Materialgenerator</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./print.css" />
   </head>
   <body>
     <main class="app-shell">
@@ -38,15 +39,35 @@
               </label>
             </div>
 
-              <label>
-                Thema
-                <input name="thema" type="text" placeholder="z. B. Ordner und Dateien" />
-              </label>
+            <label>
+              Thema
+              <input name="thema" type="text" placeholder="z. B. vertrauenswürdige Internetquellen" />
+            </label>
 
             <label>
               Stundenziel
               <textarea name="stundenziel" rows="3" placeholder="Was sollen die Schüler:innen am Ende können?"></textarea>
             </label>
+
+            <label>
+              Leitfrage / Forscherfrage
+              <textarea name="leitfrage" rows="2" placeholder="z. B. Woran erkenne ich, ob eine Internetquelle vertrauenswürdig ist?"></textarea>
+            </label>
+
+            <div class="field-row">
+              <label>
+                Dauer
+                <input name="dauer" type="text" value="60 Minuten" placeholder="z. B. 60 Minuten" />
+              </label>
+              <label>
+                Niveau
+                <select name="schwierigkeit">
+                  <option value="eher leicht" selected>eher leicht</option>
+                  <option value="mittel">mittel</option>
+                  <option value="anspruchsvoll">anspruchsvoll</option>
+                </select>
+              </label>
+            </div>
 
             <label>
               Vorwissen / Stolperstellen
@@ -58,22 +79,40 @@
             <div class="panel-heading">
               <span class="step">02</span>
               <div>
-                <h2>Materialform</h2>
-                <p>Wie soll der Arbeitsauftrag funktionieren?</p>
+                <h2>Template</h2>
+                <p>Welcher Lernweg soll entstehen?</p>
               </div>
             </div>
 
             <label>
               Materialtyp
               <select name="materialtyp">
-                <option>Arbeitsphase mit kurzem Einstieg</option>
+                <option>Forscherheft</option>
                 <option>Arbeitsblatt</option>
                 <option>Lernpfad</option>
                 <option>Erkundungsauftrag</option>
                 <option>Übung / Wiederholung</option>
-                <option>Gruppenauftrag</option>
               </select>
             </label>
+
+            <fieldset>
+              <legend>Forscherheft-Typ</legend>
+              <div class="checks vertical">
+                <label><input type="radio" name="templateMode" value="knowledge" checked /> Wissens-Forscherheft</label>
+                <label><input type="radio" name="templateMode" value="experiment" /> Experiment-Forscherheft</label>
+                <label><input type="radio" name="templateMode" value="exploration" /> Erkundungs-Forscherheft</label>
+                <label><input type="radio" name="templateMode" value="worksheet" /> kurzes Arbeitsblatt</label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Umfang</legend>
+              <div class="segmented">
+                <label><input type="radio" name="variant" value="2p" /> 2 Seiten</label>
+                <label><input type="radio" name="variant" value="4p" checked /> 4 Seiten</label>
+                <label><input type="radio" name="variant" value="6p" /> 6 Seiten</label>
+              </div>
+            </fieldset>
 
             <label>
               Aufgabenmuster
@@ -86,22 +125,13 @@
             </label>
 
             <fieldset>
-              <legend>Schwierigkeit</legend>
-              <div class="segmented">
-                <label><input type="radio" name="schwierigkeit" value="eher leicht" checked /> leicht</label>
-                <label><input type="radio" name="schwierigkeit" value="mittel" /> mittel</label>
-                <label><input type="radio" name="schwierigkeit" value="anspruchsvoll" /> anspruchsvoll</label>
-              </div>
-            </fieldset>
-
-            <fieldset>
               <legend>Output</legend>
               <div class="checks">
-                <label><input type="checkbox" name="output" value="HTML-Master" checked /> HTML</label>
-                <label><input type="checkbox" name="output" value="PDF" checked /> PDF</label>
-                <label><input type="checkbox" name="output" value="DOCX" checked /> DOCX</label>
-                <label><input type="checkbox" name="output" value="PPTX-Einstieg" checked /> PPTX</label>
-                <label><input type="checkbox" name="output" value="Lehrkraft-Notiz" checked /> Notiz</label>
+                <label><input type="checkbox" name="output" value="index.html" checked /> HTML</label>
+                <label><input type="checkbox" name="output" value="material.pdf" checked /> PDF-Druck</label>
+                <label><input type="checkbox" name="output" value="scobees.txt" checked /> Scobees</label>
+                <label><input type="checkbox" name="output" value="meta.json" checked /> Meta</label>
+                <label><input type="checkbox" name="output" value="lehrkraft_notiz.md" checked /> Notiz</label>
               </div>
             </fieldset>
           </section>
@@ -127,7 +157,7 @@
               <label>
                 Gestaltung
                 <select name="gestaltung">
-                  <option>modern, ruhig, iPad- und drucktauglich</option>
+                  <option>Apple-clean, Sek-I-professionell, nicht kindisch</option>
                   <option>sehr schlicht und arbeitsblattnah</option>
                   <option>visueller, mit mehr Orientierungselementen</option>
                 </select>
@@ -140,14 +170,19 @@
                 <label><input type="checkbox" name="schwerpunkte" value="kleinschrittiger Startauftrag" checked /> kleinschrittiger Start</label>
                 <label><input type="checkbox" name="schwerpunkte" value="Beispiel vor Eigenarbeit" checked /> Beispiel vor Eigenarbeit</label>
                 <label><input type="checkbox" name="schwerpunkte" value="Stern/Planet/Rakete-Differenzierung" checked /> Stern / Planet / Rakete</label>
+                <label><input type="checkbox" name="schwerpunkte" value="Scobees-Abgabehinweis" checked /> Scobees-Abgabehinweis</label>
                 <label><input type="checkbox" name="schwerpunkte" value="Quellen und Urheberrecht mitdenken" /> Quellen / Urheberrecht</label>
-                <label><input type="checkbox" name="schwerpunkte" value="Partnerarbeit sinnvoll einbauen" /> Partnerarbeit</label>
               </div>
             </fieldset>
 
             <label>
               Eigene Inhalte / Begriffe / Beispiele
               <textarea name="inhalte" rows="4" placeholder="Begriffe, Beispiele, Regeln, Textbausteine oder Materialinhalte, die vorkommen sollen ..."></textarea>
+            </label>
+
+            <label>
+              Scobees-Abgabehinweis
+              <textarea name="scobeesSubmission" rows="3" placeholder="z. B. Lade Seite 4 als Foto hoch und schreibe einen Satz dazu, was du verstanden hast."></textarea>
             </label>
 
             <label>
@@ -174,8 +209,10 @@
 
         <div class="actions">
           <button id="printButton" type="button">PDF drucken</button>
-          <button id="downloadHtmlButton" type="button" class="secondary">HTML laden</button>
-          <button id="downloadNoteButton" type="button" class="secondary">Notiz laden</button>
+          <button id="downloadHtmlButton" type="button" class="secondary">index.html</button>
+          <button id="downloadScobeesButton" type="button" class="secondary">scobees.txt</button>
+          <button id="downloadMetaButton" type="button" class="secondary">meta.json</button>
+          <button id="downloadNoteButton" type="button" class="secondary">Notiz</button>
         </div>
       </aside>
     </main>
