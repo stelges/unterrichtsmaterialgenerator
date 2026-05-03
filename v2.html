@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./v2/v2.css" />
     <style>
-      .quality-score{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0}.quality-score.good{background:#ecfdf5;border-color:#bbf7d0;color:#166534}.quality-score.medium{background:#fffbeb;border-color:#fde68a;color:#92400e}.quality-score.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}.quality-score strong{font-size:1.35rem}.v2-help{padding:12px 14px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;line-height:1.45}.v2-actions{display:flex;flex-wrap:wrap;gap:8px}.v2-actions button{flex:1 1 120px}
+      .quality-score{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0}.quality-score.good{background:#ecfdf5;border-color:#bbf7d0;color:#166534}.quality-score.medium{background:#fffbeb;border-color:#fde68a;color:#92400e}.quality-score.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}.quality-score strong{font-size:1.35rem}.v2-help{padding:12px 14px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;line-height:1.45}.v2-actions{display:flex;flex-wrap:wrap;gap:8px}.v2-actions button{flex:1 1 120px}.agent-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}.agent-step{padding:12px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color:#64748b}.agent-step strong{display:block;color:#111827}.agent-step.active{border-color:#2563eb;background:#eff6ff;color:#1d4ed8}.brief-card{display:grid;gap:12px}.brief-card h3{margin:0}.brief-grid{display:grid;gap:10px}.brief-pill-list{display:flex;flex-wrap:wrap;gap:8px}.brief-pill{padding:6px 10px;border-radius:999px;background:#f1f5f9;border:1px solid #cbd5e1;font-size:.85rem}.agent-buttons{display:flex;flex-wrap:wrap;gap:8px}.agent-buttons button{flex:1 1 140px}.muted-box{padding:12px;border-radius:14px;background:#f8fafc;border:1px dashed #cbd5e1;color:#475569;line-height:1.45}.hidden{display:none!important}@media print{.agent-steps,.brief-card,.muted-box{display:none!important}}
     </style>
   </head>
   <body>
@@ -16,10 +16,16 @@
         <header class="topbar">
           <div>
             <p class="eyebrow">Unterrichtsmaterial-Compiler</p>
-            <h1>v2 Materialstudio</h1>
+            <h1>v2 Material-Coach</h1>
           </div>
-          <div class="status-pill" id="statusPill">v2</div>
+          <div class="status-pill" id="statusPill">Brief</div>
         </header>
+
+        <div class="agent-steps" aria-label="Agentenworkflow">
+          <div class="agent-step active" id="stepBrief"><strong>1. Materialbrief</strong><span>Thema & Ziel klären</span></div>
+          <div class="agent-step" id="stepPlan"><strong>2. Didaktik-Plan</strong><span>Agent prüft Lernweg</span></div>
+          <div class="agent-step" id="stepCompile"><strong>3. Kompilieren</strong><span>MaterialPackage bauen</span></div>
+        </div>
 
         <form id="v2Form" class="form-grid simplified-form">
           <section class="panel">
@@ -27,28 +33,9 @@
               <span class="step">01</span>
               <div>
                 <h2>Materialbrief</h2>
-                <p>Der Compiler baut daraus Didaktik, Wissenskern und Aufgabenbausteine.</p>
+                <p>Nur das Nötigste. Der Agent schlägt anschließend den didaktischen Bauplan vor.</p>
               </div>
             </div>
-
-            <fieldset>
-              <legend>Materialmodus</legend>
-              <div class="checks vertical">
-                <label><input type="radio" name="templateMode" value="knowledge" checked /> Wissens-Forscherheft</label>
-                <label><input type="radio" name="templateMode" value="experiment" /> Experiment-Forscherheft</label>
-                <label><input type="radio" name="templateMode" value="exploration" /> Erkundungs-Forscherheft</label>
-                <label><input type="radio" name="templateMode" value="worksheet" /> kurzes Arbeitsblatt</label>
-              </div>
-            </fieldset>
-
-            <fieldset>
-              <legend>Umfang</legend>
-              <div class="segmented">
-                <label><input type="radio" name="variant" value="2p" /> 2 Seiten</label>
-                <label><input type="radio" name="variant" value="4p" checked /> 4 Seiten</label>
-                <label><input type="radio" name="variant" value="6p" /> 6 Seiten</label>
-              </div>
-            </fieldset>
 
             <div class="field-row">
               <label>Fach<input name="fach" value="Physik" /></label>
@@ -59,38 +46,37 @@
               <label>Dauer<input name="dauer" value="60 Minuten" /></label>
               <label>Niveau<select name="schwierigkeit"><option>eher leicht</option><option selected>mittel</option><option>anspruchsvoll</option></select></label>
             </div>
+
+            <label>Thema<input name="thema" value="Wärmeausdehnung" /></label>
+            <label>Was sollen die SuS am Ende können?<textarea name="stundenziel" rows="4">Du erklärst mit eigenen Worten, dass sich viele Stoffe bei Erwärmung ausdehnen und bei Abkühlung zusammenziehen. Du kannst einfache Alltagsbeispiele zuordnen und begründen.</textarea></label>
+            <label>Leitfrage / Problemfrage<textarea name="leitfrage" rows="2">Warum passen Deckel, Schienen oder Kabel bei Wärme manchmal nicht mehr so gut?</textarea></label>
+            <label>Inhalte, Begriffe, Beispiele, Material<input name="inhalte" placeholder="Optional: Begriffe, Beispiele, Versuch, Links, Buchseiten ..." /></label>
+            <label>Hinweise zur Klasse / Stolperstellen<textarea name="hinweise" rows="3" placeholder="z. B. wenig Text, viele brauchen Satzstarter, Klasse arbeitet selbstständig ..."></textarea></label>
+
+            <input type="hidden" name="templateMode" value="knowledge" />
+            <input type="hidden" name="variant" value="4p" />
+            <input type="hidden" name="vorwissen" value="" />
+            <input type="hidden" name="scobeesSubmission" value="" />
+
+            <button id="briefButton" type="button" class="generate-button">Didaktik-Plan vorschlagen</button>
+            <div class="v2-help">Der erste Agent erstellt noch kein Material. Er prüft zuerst: Welcher Materialtyp passt? Welche Lernhandlung? Welche Aufgabenformate?</div>
           </section>
 
-          <section class="panel">
+          <section class="panel hidden" id="briefPanel">
             <div class="panel-heading">
               <span class="step">02</span>
               <div>
-                <h2>Inhalt</h2>
-                <p>Je präziser der Brief, desto besser die Bausteine.</p>
+                <h2>Vorschlag des Didaktik-Agenten</h2>
+                <p>Erst wenn dieser Plan passt, wird das Material kompiliert.</p>
               </div>
             </div>
-
-            <label>Thema<input name="thema" value="Wärmeausdehnung" /></label>
-            <label>Stundenziel<textarea name="stundenziel" rows="3">Du erklärst mit eigenen Worten, dass sich viele Stoffe bei Erwärmung ausdehnen und bei Abkühlung zusammenziehen. Du kannst einfache Alltagsbeispiele zuordnen und begründen.</textarea></label>
-            <label>Leitfrage<textarea name="leitfrage" rows="2">Warum passen Deckel, Schienen oder Kabel bei Wärme manchmal nicht mehr so gut?</textarea></label>
-            <label>Inhalte, Begriffe, Beispiele<textarea name="inhalte" rows="5" placeholder="Begriffe, Beispiele, Regeln, Versuchsaufbau, Links oder Materialinhalte ..."></textarea></label>
-          </section>
-
-          <section class="panel">
-            <div class="panel-heading">
-              <span class="step">03</span>
-              <div>
-                <h2>Kontext & Qualität</h2>
-                <p>Diese Hinweise fließen in Lehrkraftnotiz und Bausteine ein.</p>
-              </div>
+            <div id="briefOutput" class="brief-card muted-box">Noch kein Plan erstellt.</div>
+            <div class="agent-buttons">
+              <button id="acceptBriefButton" type="button" class="generate-button">Plan übernehmen & Material kompilieren</button>
+              <button id="makeEasierButton" type="button" class="secondary">Einfacher</button>
+              <button id="makeExperimentalButton" type="button" class="secondary">Experimenteller</button>
+              <button id="makeResearchButton" type="button" class="secondary">Mehr Recherche</button>
             </div>
-
-            <label>Vorwissen / Stolperstellen<textarea name="vorwissen" rows="3" placeholder="Was können sie schon? Was ist wahrscheinlich noch unsicher?"></textarea></label>
-            <label>Hinweise zur Klasse<textarea name="hinweise" rows="3" placeholder="z. B. wenig Text, viele brauchen Satzstarter ..."></textarea></label>
-            <label>Scobees-Abgabehinweis<textarea name="scobeesSubmission" rows="3" placeholder="Leer lassen, wenn Standard reicht."></textarea></label>
-
-            <button id="generateButton" type="button" class="generate-button">Material kompilieren</button>
-            <div class="v2-help">v2 nutzt Blocktypen statt freier Textwürste. Der Qualitätscheck prüft direkt, ob echte Schülerprodukte und Wissensvermittlung vorhanden sind.</div>
           </section>
         </form>
       </section>
@@ -104,7 +90,7 @@
           <button id="resetButton" class="icon-button" type="button">↺</button>
         </div>
 
-        <section id="qualityOutput" class="panel"></section>
+        <section id="qualityOutput" class="panel"><div class="muted-box">Noch kein Material kompiliert. Starte links mit dem Didaktik-Plan.</div></section>
         <div id="v2Preview" class="material-sheet"></div>
 
         <div class="actions v2-actions">
