@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Material-Compiler v2 Demo</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./v2/v2.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Unterrichtsmaterial-Compiler v2</p>
+            <h1>Blockschema-Demo</h1>
+          </div>
+          <div class="status-pill">v2</div>
+        </header>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <span class="step">01</span>
+            <div>
+              <h2>Testfall</h2>
+              <p>Diese Demo nutzt das neue Blockschema statt freier Textwürste.</p>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <label>
+              Thema
+              <input id="topic" value="Wärmeausdehnung" />
+            </label>
+            <label>
+              Fach
+              <input id="subject" value="Physik" />
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label>
+              Klasse
+              <input id="className" value="Klasse 6" />
+            </label>
+            <label>
+              Modus
+              <select id="mode">
+                <option value="knowledge">Wissens-Forscherheft</option>
+                <option value="experiment">Experiment-Forscherheft</option>
+                <option value="exploration">Erkundungs-Forscherheft</option>
+              </select>
+            </label>
+          </div>
+
+          <button id="renderDemo" class="generate-button" type="button">v2-Material rendern</button>
+          <p id="qualityResult" class="generator-message"></p>
+        </section>
+      </section>
+
+      <aside class="preview">
+        <div class="preview-header">
+          <div>
+            <p class="eyebrow">Vorschau</p>
+            <h2>MaterialPackage v2</h2>
+          </div>
+          <button onclick="window.print()" class="icon-button" type="button">PDF</button>
+        </div>
+        <div id="demoPreview" class="material-sheet"></div>
+      </aside>
+    </main>
+
+    <script type="module">
+      import { buildMaterialPackageV2 } from "./v2/package-builder-v2.js";
+      import { checkMaterialQuality } from "./v2/quality-check-v2.js";
+      import { renderMaterialPackageV2 } from "./v2/renderer-v2.js";
+
+      const preview = document.querySelector("#demoPreview");
+      const result = document.querySelector("#qualityResult");
+
+      function render() {
+        const pkg = buildMaterialPackageV2({
+          thema: document.querySelector("#topic").value,
+          fach: document.querySelector("#subject").value,
+          klasse: document.querySelector("#className").value,
+          templateMode: document.querySelector("#mode").value,
+          variant: "4p",
+          dauer: "60 Minuten",
+          schwierigkeit: "eher leicht",
+          stundenziel: "Du erklärst das Thema mit Fachbegriffen, nutzt ein Beispiel und begründest deine Antwort.",
+          leitfrage: "Was muss ich verstehen, um das Thema sicher zu erklären und anzuwenden?",
+        });
+
+        const quality = checkMaterialQuality(pkg);
+        preview.innerHTML = renderMaterialPackageV2(pkg);
+        result.textContent = `Qualitätscheck: ${quality.score}/100 · ${quality.issues.length} Hinweise`;
+        console.log({ pkg, quality });
+      }
+
+      document.querySelector("#renderDemo").addEventListener("click", render);
+      render();
+    </script>
+  </body>
+</html>
