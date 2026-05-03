@@ -6,19 +6,30 @@ const form = document.querySelector("#v2Form");
 const preview = document.querySelector("#v2Preview");
 const qualityOutput = document.querySelector("#qualityOutput");
 const statusPill = document.querySelector("#statusPill");
-const generateButton = document.querySelector("#generateButton");
+const briefButton = document.querySelector("#briefButton");
+const briefPanel = document.querySelector("#briefPanel");
+const briefOutput = document.querySelector("#briefOutput");
+const acceptBriefButton = document.querySelector("#acceptBriefButton");
+const makeEasierButton = document.querySelector("#makeEasierButton");
+const makeExperimentalButton = document.querySelector("#makeExperimentalButton");
+const makeResearchButton = document.querySelector("#makeResearchButton");
 const printButton = document.querySelector("#printButton");
 const downloadHtmlButton = document.querySelector("#downloadHtmlButton");
 const downloadJsonButton = document.querySelector("#downloadJsonButton");
 const downloadScobeesButton = document.querySelector("#downloadScobeesButton");
 const downloadTeacherButton = document.querySelector("#downloadTeacherButton");
 const resetButton = document.querySelector("#resetButton");
+const stepBrief = document.querySelector("#stepBrief");
+const stepPlan = document.querySelector("#stepPlan");
+const stepCompile = document.querySelector("#stepCompile");
 
 const draftKey = "materialCompiler.v2.input";
 const packageKey = "materialCompiler.v2.package";
+const briefKey = "materialCompiler.v2.brief";
 let currentPackage = null;
 let currentQuality = null;
 let currentSource = "fallback";
+let currentBrief = null;
 
 function getFormData() {
   const data = new FormData(form);
@@ -52,31 +63,108 @@ function setFormData(data) {
   }
 }
 
-function generateFallback() {
-  const data = getFormData();
-  localStorage.setItem(draftKey, JSON.stringify(data));
-  currentPackage = buildMaterialPackageV2(data);
-  currentQuality = checkMaterialQuality(currentPackage);
-  currentSource = "fallback";
-  saveAndRender();
+function setActiveStep(step) {
+  [stepBrief, stepPlan, stepCompile].forEach((item) => item?.classList.remove("active"));
+  if (step === "brief") stepBrief?.classList.add("active");
+  if (step === "plan") stepPlan?.classList.add("active");
+  if (step === "compile") stepCompile?.classList.add("active");
 }
 
-async function generate() {
-  const data = getFormData();
+async function createBrief(extraInstruction = "") {
+  const data = { ...getFormData(), extraInstruction };
   localStorage.setItem(draftKey, JSON.stringify(data));
-  generateButton.disabled = true;
-  generateButton.textContent = "Kompiliere ...";
+  briefButton.disabled = true;
+  briefButton.textContent = "Agent prüft ...";
+  statusPill.textContent = "plant";
+  setActiveStep("plan");
+
+  try {
+    const response = await fetch("/api/v2/brief", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Briefing fehlgeschlagen.");
+    currentBrief = payload.brief;
+    if (currentBrief?.recommendedTemplateMode && form.elements.templateMode) {
+      form.elements.templateMode.value = currentBrief.recommendedTemplateMode;
+    }
+    localStorage.setItem(briefKey, JSON.stringify(currentBrief));
+    renderBrief(currentBrief, payload.source, payload.message);
+    briefPanel.classList.remove("hidden");
+    statusPill.textContent = payload.source === "ai" ? "Plan KI" : "Plan Basis";
+  } catch (error) {
+    currentBrief = buildLocalBrief(data);
+    renderBrief(currentBrief, "fallback", `Fallback aktiv: ${error.message}`);
+    briefPanel.classList.remove("hidden");
+    statusPill.textContent = "Plan Basis";
+  } finally {
+    briefButton.disabled = false;
+    briefButton.textContent = "Didaktik-Plan vorschlagen";
+  }
+}
+
+function buildLocalBrief(input) {
+  const mode = input.templateMode || "knowledge";
+  return {
+    recommendedTemplateMode: mode,
+    recommendationTitle: mode === "experiment" ? "Experiment-Forscherheft" : mode === "exploration" ? "Erkundungs-Forscherheft" : "Wissens-Forscherheft",
+    reasoning: "Regelbasierter Vorschlag: Erst Lernweg klären, dann Material in geprüfte Bausteine kompilieren.",
+    learningPath: ["Problemfrage verstehen", "Wissen aufbauen", "Beispiel nachvollziehen", "Aufgaben bearbeiten", "Sichern", "Abgabe prüfen"],
+    coreConcept: input.stundenziel || "Zentrales Konzept wird über Fachbegriffe, Beispiele und Begründungen erschlossen.",
+    taskPlan: ["Wissenskasten", "ausgefülltes Beispiel", "Zuordnungsaufgabe", "Begründungsaufgabe", "Merksatz"],
+    misconceptions: ["Antworten ohne Begründung", "Fachbegriffe werden nur abgeschrieben"],
+    missingInfo: [],
+    suggestedChanges: ["Satzstarter verwenden", "direkte Antwortfelder unter Aufgaben setzen"],
+    confirmedBrief: { ...input, didacticPlanConfirmed: true },
+  };
+}
+
+function renderBrief(brief, source = "fallback", message = "") {
+  briefOutput.innerHTML = `
+    <div class="brief-grid">
+      ${message ? `<p><strong>Hinweis:</strong> ${escapeHtml(message)}</p>` : ""}
+      <p><strong>Quelle:</strong> ${escapeHtml(source === "ai" ? "Didaktik-Agent" : "regelbasierter Plan")}</p>
+      <h3>${escapeHtml(brief.recommendationTitle || "Didaktik-Vorschlag")}</h3>
+      <p>${escapeHtml(brief.reasoning || "")}</p>
+      <div><strong>Kernidee:</strong><p>${escapeHtml(brief.coreConcept || "")}</p></div>
+      <div><strong>Lernweg:</strong>${renderList(brief.learningPath || [])}</div>
+      <div><strong>Aufgabenformate:</strong><div class="brief-pill-list">${(brief.taskPlan || []).map((item) => `<span class="brief-pill">${escapeHtml(item)}</span>`).join("")}</div></div>
+      <div><strong>Stolperstellen:</strong>${renderList(brief.misconceptions || [])}</div>
+      ${(brief.missingInfo || []).length ? `<div><strong>Fehlende Infos:</strong>${renderList(brief.missingInfo)}</div>` : ""}
+      <div><strong>Vorschläge:</strong>${renderList(brief.suggestedChanges || [])}</div>
+    </div>
+  `;
+}
+
+function renderList(items) {
+  if (!items.length) return "<p>—</p>";
+  return `<ol>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol>`;
+}
+
+async function generateFromBrief() {
+  const rawData = getFormData();
+  const confirmedBrief = currentBrief?.confirmedBrief || { ...rawData, didacticPlanConfirmed: true };
+  const data = {
+    ...rawData,
+    ...confirmedBrief,
+    templateMode: currentBrief?.recommendedTemplateMode || confirmedBrief.templateMode || rawData.templateMode,
+  };
+
+  setActiveStep("compile");
+  acceptBriefButton.disabled = true;
+  acceptBriefButton.textContent = "Kompiliere ...";
   statusPill.textContent = "arbeitet";
 
   try {
     const response = await fetch("/api/v2/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, confirmedBrief: data, didacticBrief: currentBrief }),
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "v2-Generierung fehlgeschlagen.");
-
     currentPackage = payload.package || buildMaterialPackageV2(data);
     currentQuality = payload.quality || checkMaterialQuality(currentPackage);
     currentSource = payload.source || "fallback";
@@ -87,9 +175,18 @@ async function generate() {
     currentSource = "fallback";
     saveAndRender(`Fallback aktiv: ${error.message}`);
   } finally {
-    generateButton.disabled = false;
-    generateButton.textContent = "Material kompilieren";
+    acceptBriefButton.disabled = false;
+    acceptBriefButton.textContent = "Plan übernehmen & Material kompilieren";
   }
+}
+
+function generateFallback() {
+  const data = getFormData();
+  localStorage.setItem(draftKey, JSON.stringify(data));
+  currentPackage = buildMaterialPackageV2(data);
+  currentQuality = checkMaterialQuality(currentPackage);
+  currentSource = "fallback";
+  saveAndRender();
 }
 
 function saveAndRender(message = "") {
@@ -134,13 +231,7 @@ function downloadFile(filename, content, type) {
 }
 
 function slugify(value) {
-  return (value || "material")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 80);
+  return (value || "material").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80);
 }
 
 function ensurePackage() {
@@ -151,49 +242,46 @@ function ensurePackage() {
 function reset() {
   localStorage.removeItem(draftKey);
   localStorage.removeItem(packageKey);
+  localStorage.removeItem(briefKey);
   form.reset();
-  generateFallback();
+  preview.innerHTML = "";
+  currentBrief = null;
+  currentPackage = null;
+  currentQuality = null;
+  briefPanel.classList.add("hidden");
+  briefOutput.innerHTML = "Noch kein Plan erstellt.";
+  qualityOutput.innerHTML = `<div class="muted-box">Noch kein Material kompiliert. Starte links mit dem Didaktik-Plan.</div>`;
+  setActiveStep("brief");
+  statusPill.textContent = "Brief";
 }
 
 function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
 
-generateButton.addEventListener("click", generate);
+briefButton.addEventListener("click", () => createBrief());
+acceptBriefButton.addEventListener("click", generateFromBrief);
+makeEasierButton.addEventListener("click", () => createBrief("Mache den Plan einfacher, kleinschrittiger und mit mehr Satzstartern."));
+makeExperimentalButton.addEventListener("click", () => { form.elements.templateMode.value = "experiment"; createBrief("Plane das Material experimenteller mit Vermutung, Beobachtung und Auswertung."); });
+makeResearchButton.addEventListener("click", () => { form.elements.templateMode.value = "exploration"; createBrief("Plane das Material stärker als Recherche/Erkundung mit Quellen, Fundorten und Kriterien."); });
 printButton.addEventListener("click", () => window.print());
 resetButton.addEventListener("click", reset);
 
-downloadHtmlButton.addEventListener("click", () => {
-  const pkg = ensurePackage();
-  downloadFile(`${slugify(pkg.meta.subject + "_" + pkg.meta.className + "_" + pkg.meta.title)}.html`, buildFullHtml(pkg), "text/html;charset=utf-8");
-});
+downloadHtmlButton.addEventListener("click", () => { const pkg = ensurePackage(); downloadFile(`${slugify(pkg.meta.subject + "_" + pkg.meta.className + "_" + pkg.meta.title)}.html`, buildFullHtml(pkg), "text/html;charset=utf-8"); });
+downloadJsonButton.addEventListener("click", () => { const pkg = ensurePackage(); downloadFile(`${slugify(pkg.meta.title)}.material-package.json`, JSON.stringify(pkg, null, 2), "application/json;charset=utf-8"); });
+downloadScobeesButton.addEventListener("click", () => { const pkg = ensurePackage(); downloadFile(`${slugify(pkg.meta.title)}.scobees.txt`, buildScobeesText(pkg), "text/plain;charset=utf-8"); });
+downloadTeacherButton.addEventListener("click", () => { const pkg = ensurePackage(); const quality = currentQuality || checkMaterialQuality(pkg); downloadFile(`${slugify(pkg.meta.title)}.lehrkraft.md`, buildTeacherNote(pkg, quality), "text/markdown;charset=utf-8"); });
 
-downloadJsonButton.addEventListener("click", () => {
-  const pkg = ensurePackage();
-  downloadFile(`${slugify(pkg.meta.title)}.material-package.json`, JSON.stringify(pkg, null, 2), "application/json;charset=utf-8");
-});
-
-downloadScobeesButton.addEventListener("click", () => {
-  const pkg = ensurePackage();
-  downloadFile(`${slugify(pkg.meta.title)}.scobees.txt`, buildScobeesText(pkg), "text/plain;charset=utf-8");
-});
-
-downloadTeacherButton.addEventListener("click", () => {
-  const pkg = ensurePackage();
-  const quality = currentQuality || checkMaterialQuality(pkg);
-  downloadFile(`${slugify(pkg.meta.title)}.lehrkraft.md`, buildTeacherNote(pkg, quality), "text/markdown;charset=utf-8");
-});
-
-form.addEventListener("input", () => {
-  localStorage.setItem(draftKey, JSON.stringify(getFormData()));
-});
+form.addEventListener("input", () => localStorage.setItem(draftKey, JSON.stringify(getFormData())));
 
 const restoredDraft = localStorage.getItem(draftKey);
 if (restoredDraft) setFormData(JSON.parse(restoredDraft));
-
-generateFallback();
+const restoredBrief = localStorage.getItem(briefKey);
+if (restoredBrief) {
+  currentBrief = JSON.parse(restoredBrief);
+  renderBrief(currentBrief, "cache");
+  briefPanel.classList.remove("hidden");
+  setActiveStep("plan");
+} else {
+  setActiveStep("brief");
+}
