@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Unterrichtsmaterial-Compiler v2</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./v2/v2.css" />
+    <style>
+      .quality-score{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0}.quality-score.good{background:#ecfdf5;border-color:#bbf7d0;color:#166534}.quality-score.medium{background:#fffbeb;border-color:#fde68a;color:#92400e}.quality-score.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}.quality-score strong{font-size:1.35rem}.v2-help{padding:12px 14px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;line-height:1.45}.v2-actions{display:flex;flex-wrap:wrap;gap:8px}.v2-actions button{flex:1 1 120px}
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-label="V2 Unterrichtsmaterial erstellen">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Unterrichtsmaterial-Compiler</p>
+            <h1>v2 Materialstudio</h1>
+          </div>
+          <div class="status-pill" id="statusPill">v2</div>
+        </header>
+
+        <form id="v2Form" class="form-grid simplified-form">
+          <section class="panel">
+            <div class="panel-heading">
+              <span class="step">01</span>
+              <div>
+                <h2>Materialbrief</h2>
+                <p>Der Compiler baut daraus Didaktik, Wissenskern und Aufgabenbausteine.</p>
+              </div>
+            </div>
+
+            <fieldset>
+              <legend>Materialmodus</legend>
+              <div class="checks vertical">
+                <label><input type="radio" name="templateMode" value="knowledge" checked /> Wissens-Forscherheft</label>
+                <label><input type="radio" name="templateMode" value="experiment" /> Experiment-Forscherheft</label>
+                <label><input type="radio" name="templateMode" value="exploration" /> Erkundungs-Forscherheft</label>
+                <label><input type="radio" name="templateMode" value="worksheet" /> kurzes Arbeitsblatt</label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Umfang</legend>
+              <div class="segmented">
+                <label><input type="radio" name="variant" value="2p" /> 2 Seiten</label>
+                <label><input type="radio" name="variant" value="4p" checked /> 4 Seiten</label>
+                <label><input type="radio" name="variant" value="6p" /> 6 Seiten</label>
+              </div>
+            </fieldset>
+
+            <div class="field-row">
+              <label>Fach<input name="fach" value="Physik" /></label>
+              <label>Klasse<input name="klasse" value="Klasse 6" /></label>
+            </div>
+
+            <div class="field-row">
+              <label>Dauer<input name="dauer" value="60 Minuten" /></label>
+              <label>Niveau<select name="schwierigkeit"><option>eher leicht</option><option selected>mittel</option><option>anspruchsvoll</option></select></label>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <span class="step">02</span>
+              <div>
+                <h2>Inhalt</h2>
+                <p>Je präziser der Brief, desto besser die Bausteine.</p>
+              </div>
+            </div>
+
+            <label>Thema<input name="thema" value="Wärmeausdehnung" /></label>
+            <label>Stundenziel<textarea name="stundenziel" rows="3">Du erklärst mit eigenen Worten, dass sich viele Stoffe bei Erwärmung ausdehnen und bei Abkühlung zusammenziehen. Du kannst einfache Alltagsbeispiele zuordnen und begründen.</textarea></label>
+            <label>Leitfrage<textarea name="leitfrage" rows="2">Warum passen Deckel, Schienen oder Kabel bei Wärme manchmal nicht mehr so gut?</textarea></label>
+            <label>Inhalte, Begriffe, Beispiele<textarea name="inhalte" rows="5" placeholder="Begriffe, Beispiele, Regeln, Versuchsaufbau, Links oder Materialinhalte ..."></textarea></label>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <span class="step">03</span>
+              <div>
+                <h2>Kontext & Qualität</h2>
+                <p>Diese Hinweise fließen in Lehrkraftnotiz und Bausteine ein.</p>
+              </div>
+            </div>
+
+            <label>Vorwissen / Stolperstellen<textarea name="vorwissen" rows="3" placeholder="Was können sie schon? Was ist wahrscheinlich noch unsicher?"></textarea></label>
+            <label>Hinweise zur Klasse<textarea name="hinweise" rows="3" placeholder="z. B. wenig Text, viele brauchen Satzstarter ..."></textarea></label>
+            <label>Scobees-Abgabehinweis<textarea name="scobeesSubmission" rows="3" placeholder="Leer lassen, wenn Standard reicht."></textarea></label>
+
+            <button id="generateButton" type="button" class="generate-button">Material kompilieren</button>
+            <div class="v2-help">v2 nutzt Blocktypen statt freier Textwürste. Der Qualitätscheck prüft direkt, ob echte Schülerprodukte und Wissensvermittlung vorhanden sind.</div>
+          </section>
+        </form>
+      </section>
+
+      <aside class="preview">
+        <div class="preview-header">
+          <div>
+            <p class="eyebrow">Vorschau & Qualitätscheck</p>
+            <h2>MaterialPackage v2</h2>
+          </div>
+          <button id="resetButton" class="icon-button" type="button">↺</button>
+        </div>
+
+        <section id="qualityOutput" class="panel"></section>
+        <div id="v2Preview" class="material-sheet"></div>
+
+        <div class="actions v2-actions">
+          <button id="printButton" type="button">PDF drucken</button>
+          <button id="downloadHtmlButton" type="button" class="secondary">HTML</button>
+          <button id="downloadJsonButton" type="button" class="secondary">JSON</button>
+          <button id="downloadScobeesButton" type="button" class="secondary">Scobees</button>
+          <button id="downloadTeacherButton" type="button" class="secondary">Notiz</button>
+        </div>
+      </aside>
+    </main>
+
+    <script type="module" src="./v2/app-v2.js"></script>
+  </body>
+</html>
