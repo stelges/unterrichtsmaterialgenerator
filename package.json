@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "check": "node --check server.js && node --check app.js && node --check v2/material-schema-v2.js && node --check v2/package-builder-v2.js && node --check v2/quality-check-v2.js && node --check v2/renderer-v2.js"
+    "start": "node server-v2.js",
+    "start:legacy": "node server.js",
+    "check": "node --check server-v2.js && node --check server.js && node --check app.js && node --check v2/material-schema-v2.js && node --check v2/package-builder-v2.js && node --check v2/quality-check-v2.js && node --check v2/renderer-v2.js && node --check v2/app-v2.js"
   },
   "dependencies": {}
 }
