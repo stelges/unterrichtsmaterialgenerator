@@ -4,6 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildMaterialPackageV2 } from "./v2/package-builder-v2.js";
 import { checkMaterialQuality } from "./v2/quality-check-v2.js";
+import { buildLearningDesignV3 } from "./v3/builder-v3.js";
+import { checkCoherenceV3 } from "./v3/coherence-check-v3.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -218,6 +220,240 @@ async function handleV2Generate(req, res) {
   }
 }
 
+// ── v3 handlers ───────────────────────────────────────────────────────────────
+
+function buildV3BriefInstructions() {
+  return `Du bist ein erfahrener deutscher Sek-I-Fachleiter. Du erstellst noch KEIN Material. Du analysierst den Materialbrief und planst das Lerndesign: Stundenfrage, roter Faden, Zielantwort, Lernschritte, Kernbegriffe, Fehlvorstellungen, Materialplan und Aufgabenplan. Antworte ausschließlich als valides JSON. Keine Markdown-Ausgabe.`;
+}
+
+function buildV3BriefPrompt(input) {
+  return `Analysiere diesen Materialbrief und erstelle einen Lerndesign-Plan als JSON:
+${JSON.stringify(input, null, 2)}
+
+Pflichtformat:
+{
+  "studentQuestion": "string – die Frage, die SuS am Ende beantworten können",
+  "lessonStory": "string – roter Faden der Stunde in einem Satz",
+  "targetAnswer": "string – wie eine gute Schülerantwort klingt",
+  "learningSteps": ["string"],
+  "keyConcepts": ["string"],
+  "misconceptions": ["string"],
+  "successCriteria": ["string"],
+  "materialPlan": ["string – z.B. M1: Alltagsproblem (mini_text)"],
+  "taskPlan": ["string – z.B. A1: Vermutung (predict)"],
+  "confirmedBrief": { ...original input, "didacticPlanConfirmed": true }
+}`;
+}
+
+function buildV3MaterialInstructions() {
+  return `Du bist ein erfahrener deutscher Sek-I-Fachlehrer. Du erstellst das materialInventory für ein Lerndesign. Jedes Material bekommt eine eindeutige ID (M1, M2, M3 ...). Material-Typen: mini_text, knowledge_box, worked_example, term_bank, data_table, experiment_instruction, research_source, visual_placeholder. Antworte ausschließlich als valides JSON. Keine fremdsprachigen Zeichen.`;
+}
+
+function buildV3MaterialPrompt(input, design) {
+  return `Erstelle das materialInventory für dieses Lerndesign.
+
+Lerndesign:
+${JSON.stringify(design.learningDesign, null, 2)}
+
+Materialbrief:
+${JSON.stringify(input, null, 2)}
+
+Pflichtformat:
+{
+  "materialInventory": [
+    {
+      "id": "M1",
+      "type": "mini_text|knowledge_box|worked_example|term_bank|data_table|experiment_instruction|research_source|visual_placeholder",
+      "title": "string",
+      "content": "string – fachlich präziser Inhalt auf Deutsch",
+      "terms": [{ "term": "string", "explanation": "string", "example": "string" }],
+      "rows": ["string"],
+      "columns": ["string"],
+      "sourceNote": "string"
+    }
+  ]
+}
+
+Regeln:
+- Mindestens ein knowledge_box mit Fachbegriffen und terms-Array.
+- Mindestens ein worked_example. Inhalt als: "Situation: ... Beobachtung: ... Erklärung: ...".
+- Kein freier Fließtext in Aufgabenfeldern.
+- Nur Deutsch, keine fremdsprachigen Zeichen.`;
+}
+
+function buildV3TaskInstructions() {
+  return `Du bist ein Aufgaben-Designer für deutsches Sek-I-Unterrichtsmaterial. Du erstellst taskSequence und pageComposition. Jede Aufgabe verweist explizit auf vorhandene Material-IDs. Aufgaben-Typen: predict, explain, match, true_false_correct, short_answer, table_complete, research, experiment_protocol, draw_or_sketch, merksatz, reflect. Antworte ausschließlich als valides JSON. Keine fremdsprachigen Zeichen.`;
+}
+
+function buildV3TaskPrompt(input, design) {
+  return `Erstelle taskSequence und pageComposition für dieses Lerndesign.
+
+Vorhandene Materialien:
+${design.materialInventory.map((m) => `${m.id}: [${m.type}] ${m.title}`).join("\n")}
+
+Lerndesign:
+${JSON.stringify(design.learningDesign, null, 2)}
+
+Materialbrief:
+${JSON.stringify(input, null, 2)}
+
+Pflichtformat:
+{
+  "taskSequence": [
+    {
+      "id": "A1",
+      "type": "predict|explain|match|true_false_correct|short_answer|table_complete|research|experiment_protocol|draw_or_sketch|merksatz|reflect",
+      "title": "string",
+      "prompt": "string – klarer Schülerauftrag",
+      "uses": ["M1"],
+      "requiresConcepts": ["string"],
+      "answerFormat": "one_sentence|short_lines|merksatz|check_and_correct|table",
+      "scaffold": "string – Satzstarter oder Hilfe",
+      "expectedStudentProduct": "string",
+      "options": [],
+      "items": [{ "statement": "string", "expected": true, "correctionStarter": "Richtig ist: …" }],
+      "rows": ["string"],
+      "columns": ["string"]
+    }
+  ],
+  "pageComposition": [
+    { "pageNumber": 1, "purpose": "hook|knowledge|practice|secure|extend", "title": "string", "materialIds": ["M1"], "taskIds": ["A1"] }
+  ]
+}
+
+Regeln:
+- Jede Aufgabe in uses nur auf vorhandene Material-IDs (${design.materialInventory.map((m) => m.id).join(", ")}) verweisen.
+- Mindestens 4 Aufgaben, 4 Seiten.
+- Letzte Seite: purpose "secure" mit merksatz und/oder reflect.
+- Jede Aufgabe braucht expectedStudentProduct.`;
+}
+
+function buildV3RepairInstructions() {
+  return `Du bist der Repair-Agent für ein deutsches Sek-I-Lerndesign v3. Du erhältst ein LearningDesign-v3 und einen Kohärenzbericht. Repariere das JSON. Antworte ausschließlich mit dem vollständigen reparierten LearningDesign als valides JSON.
+
+Reparaturregeln:
+- Alle high severity issues beheben.
+- Aufgaben dürfen nur auf Material-IDs verweisen, die in materialInventory existieren.
+- Jede Aufgabe braucht expectedStudentProduct.
+- Keine fremdsprachigen Zeichen.
+- pageComposition muss alle Tasks und Materialien referenzieren.`;
+}
+
+function buildV3RepairPrompt(design, coherence) {
+  return `Repariere dieses LearningDesign v3.
+
+Kohärenzbericht:
+${JSON.stringify(coherence, null, 2)}
+
+LearningDesign:
+${JSON.stringify(design, null, 2)}
+
+Gib ausschließlich das vollständige reparierte LearningDesign als JSON zurück.`;
+}
+
+async function handleV3Brief(req, res) {
+  const input = await readJsonBody(req);
+
+  if (!process.env.OPENAI_API_KEY) {
+    const fallback = buildLearningDesignV3(input);
+    const brief = {
+      studentQuestion: fallback.learningDesign.studentQuestion,
+      lessonStory: fallback.learningDesign.lessonStory,
+      targetAnswer: fallback.learningDesign.targetAnswer,
+      learningSteps: fallback.learningDesign.learningSteps,
+      keyConcepts: fallback.learningDesign.keyConcepts,
+      misconceptions: fallback.learningDesign.misconceptions,
+      successCriteria: fallback.learningDesign.successCriteria,
+      materialPlan: fallback.materialInventory.map((m) => `${m.id}: ${m.title} (${m.type})`),
+      taskPlan: fallback.taskSequence.map((t) => `${t.id}: ${t.title} (${t.type})`),
+      confirmedBrief: { ...input, didacticPlanConfirmed: true },
+    };
+    return sendJson(res, 200, { source: "fallback", brief });
+  }
+
+  try {
+    const brief = await callJsonModel({ instructions: buildV3BriefInstructions(), prompt: buildV3BriefPrompt(input) });
+    sendJson(res, 200, { source: "ai", brief });
+  } catch (error) {
+    const fallback = buildLearningDesignV3(input);
+    const brief = {
+      studentQuestion: fallback.learningDesign.studentQuestion,
+      lessonStory: fallback.learningDesign.lessonStory,
+      targetAnswer: fallback.learningDesign.targetAnswer,
+      learningSteps: fallback.learningDesign.learningSteps,
+      keyConcepts: fallback.learningDesign.keyConcepts,
+      misconceptions: fallback.learningDesign.misconceptions,
+      successCriteria: fallback.learningDesign.successCriteria,
+      materialPlan: fallback.materialInventory.map((m) => `${m.id}: ${m.title} (${m.type})`),
+      taskPlan: fallback.taskSequence.map((t) => `${t.id}: ${t.title} (${t.type})`),
+      confirmedBrief: { ...input, didacticPlanConfirmed: true },
+    };
+    sendJson(res, 200, { source: "fallback", message: `Briefing-KI nicht nutzbar: ${error.message}`, brief });
+  }
+}
+
+async function handleV3Generate(req, res) {
+  const input = await readJsonBody(req);
+  const generationInput = input.confirmedBrief || input;
+
+  // Always start with the rule-based fallback as scaffold
+  let design = buildLearningDesignV3(generationInput);
+
+  if (!process.env.OPENAI_API_KEY) {
+    const coherence = checkCoherenceV3(design);
+    return sendJson(res, 200, { source: "fallback", message: "Kein OPENAI_API_KEY. Regelbasierter v3-Entwurf.", design, coherence, repaired: false });
+  }
+
+  let source = "ai";
+  try {
+    // Step 1: Material-Agent generates materialInventory
+    const materialResult = await callJsonModel({
+      instructions: buildV3MaterialInstructions(),
+      prompt: buildV3MaterialPrompt(generationInput, design),
+    });
+    if (Array.isArray(materialResult.materialInventory)) {
+      design.materialInventory = materialResult.materialInventory;
+    }
+
+    // Step 2: Aufgaben-Agent generates taskSequence + pageComposition
+    const taskResult = await callJsonModel({
+      instructions: buildV3TaskInstructions(),
+      prompt: buildV3TaskPrompt(generationInput, design),
+    });
+    if (Array.isArray(taskResult.taskSequence)) design.taskSequence = taskResult.taskSequence;
+    if (Array.isArray(taskResult.pageComposition)) design.pageComposition = taskResult.pageComposition;
+  } catch (error) {
+    source = "fallback";
+    design = buildLearningDesignV3(generationInput);
+  }
+
+  // Step 3: Coherence check
+  let coherence = checkCoherenceV3(design);
+  design.coherenceReport = coherence;
+
+  // Step 4: Repair if needed
+  let repaired = false;
+  if (source === "ai" && (!coherence.ok || coherence.score < 85)) {
+    try {
+      const repairedDesign = await callJsonModel({
+        instructions: buildV3RepairInstructions(),
+        prompt: buildV3RepairPrompt(design, coherence),
+      });
+      const repairedCoherence = checkCoherenceV3(repairedDesign);
+      if (repairedCoherence.score >= coherence.score) {
+        design = repairedDesign;
+        coherence = repairedCoherence;
+        design.coherenceReport = coherence;
+        repaired = true;
+      }
+    } catch (_) {
+      // keep original
+    }
+  }
+
+  sendJson(res, 200, { source, design, coherence, repaired });
+}
+
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://localhost:${port}`);
   const requestedPath = decodeURIComponent(url.pathname === "/" ? "/v2.html" : url.pathname);
@@ -234,6 +470,8 @@ function serveStatic(req, res) {
 const server = http.createServer((req, res) => {
   if (req.method === "POST" && req.url === "/api/v2/brief") { handleV2Brief(req, res).catch((error) => sendJson(res, 500, { error: error.message })); return; }
   if (req.method === "POST" && req.url === "/api/v2/generate") { handleV2Generate(req, res).catch((error) => sendJson(res, 500, { error: error.message })); return; }
+  if (req.method === "POST" && req.url === "/api/v3/brief") { handleV3Brief(req, res).catch((error) => sendJson(res, 500, { error: error.message })); return; }
+  if (req.method === "POST" && req.url === "/api/v3/generate") { handleV3Generate(req, res).catch((error) => sendJson(res, 500, { error: error.message })); return; }
   if (req.method === "GET" || req.method === "HEAD") { serveStatic(req, res); return; }
   res.writeHead(405); res.end("Method not allowed");
 });

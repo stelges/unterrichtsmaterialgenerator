@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Unterrichtsmaterial-Compiler v3</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./v2/v2.css" />
+    <link rel="stylesheet" href="./v3/v3.css" />
+    <style>
+      .quality-score{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0}.quality-score.good{background:#ecfdf5;border-color:#bbf7d0;color:#166534}.quality-score.medium{background:#fffbeb;border-color:#fde68a;color:#92400e}.quality-score.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}.quality-score strong{font-size:1.35rem}.v2-help{padding:12px 14px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;line-height:1.45}.v2-actions{display:flex;flex-wrap:wrap;gap:8px}.v2-actions button{flex:1 1 120px}.agent-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}.agent-step{padding:12px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color:#64748b}.agent-step strong{display:block;color:#111827}.agent-step.active{border-color:#7c3aed;background:#f5f3ff;color:#5b21b6}.brief-card{display:grid;gap:12px}.brief-card h3{margin:0}.brief-grid{display:grid;gap:10px}.brief-pill-list{display:flex;flex-wrap:wrap;gap:8px}.brief-pill{padding:6px 10px;border-radius:999px;background:#f1f5f9;border:1px solid #cbd5e1;font-size:.85rem}.muted-box{padding:12px;border-radius:14px;background:#f8fafc;border:1px dashed #cbd5e1;color:#475569;line-height:1.45}.feedback-box{display:grid;gap:8px;padding:12px;border-radius:14px;background:#fff;border:1px solid #dbe3ef}.hidden{display:none!important}.v3-badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#ede9fe;color:#6d28d9;font-size:.75rem;font-weight:600;margin-left:6px}.v3-highlight-question{font-size:1.05rem;font-weight:600;color:#4c1d95;padding:8px 12px;border-left:3px solid #7c3aed;background:#f5f3ff;border-radius:0 8px 8px 0;margin:4px 0}@media print{.agent-steps,.brief-card,.muted-box,.feedback-box{display:none!important}}
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-label="V3 Unterrichtsmaterial erstellen">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Unterrichtsmaterial-Compiler <span class="v3-badge">v3</span></p>
+            <h1>Lerndesign-Pipeline</h1>
+          </div>
+          <div class="status-pill" id="statusPill">Brief</div>
+        </header>
+
+        <div class="agent-steps" aria-label="Pipeline-Schritte">
+          <div class="agent-step active" id="stepBrief"><strong>1. Materialbrief</strong><span>Ziel & Frage klären</span></div>
+          <div class="agent-step" id="stepPlan"><strong>2. Didaktik-Plan</strong><span>Lerndesign prüfen</span></div>
+          <div class="agent-step" id="stepCompile"><strong>3. Kompilieren</strong><span>Material + Kohärenzcheck</span></div>
+        </div>
+
+        <form id="v3Form" class="form-grid simplified-form">
+          <section class="panel">
+            <div class="panel-heading">
+              <span class="step">01</span>
+              <div>
+                <h2>Materialbrief</h2>
+                <p>Ziel und Frage eingeben. Der Didaktik-Agent plant Lerndesign, Materialien und Aufgaben getrennt.</p>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <label>Fach<input name="fach" value="Physik" /></label>
+              <label>Klasse<input name="klasse" value="Klasse 6" /></label>
+            </div>
+
+            <div class="field-row">
+              <label>Dauer<input name="dauer" value="60 Minuten" /></label>
+              <label>Niveau<select name="schwierigkeit"><option>eher leicht</option><option selected>mittel</option><option>anspruchsvoll</option></select></label>
+            </div>
+
+            <label>Thema<input name="thema" value="Wärmeausdehnung" /></label>
+            <label>Was sollen die SuS am Ende können?
+              <textarea name="stundenziel" rows="4">Du erklärst mit eigenen Worten, dass sich viele Stoffe bei Erwärmung ausdehnen und bei Abkühlung zusammenziehen. Du kannst einfache Alltagsbeispiele zuordnen und begründen.</textarea>
+            </label>
+            <label>Stundenfrage / Problemfrage
+              <textarea name="leitfrage" rows="2">Warum passen Deckel, Schienen oder Kabel bei Wärme manchmal nicht mehr so gut?</textarea>
+            </label>
+            <label>Inhalte, Begriffe, Beispiele
+              <input name="inhalte" placeholder="Optional: Begriffe, Beispiele, Versuch, Buchseiten …" />
+            </label>
+            <label>Hinweise zur Klasse
+              <textarea name="hinweise" rows="3" placeholder="z. B. wenig Text, viele brauchen Satzstarter …"></textarea>
+            </label>
+
+            <input type="hidden" name="variant" value="4p" />
+
+            <button id="briefButton" type="button" class="generate-button">Didaktik-Plan vorschlagen</button>
+            <div class="v2-help">
+              v3 trennt Materialien und Aufgaben. Jede Aufgabe verweist explizit auf ihr Material.
+              Der Kohärenzcheck prüft anschließend, ob alle Verweise stimmen.
+            </div>
+          </section>
+
+          <section class="panel hidden" id="briefPanel">
+            <div class="panel-heading">
+              <span class="step">02</span>
+              <div>
+                <h2>Didaktik-Plan</h2>
+                <p>Lerndesign, Materialplan und Aufgabenplan prüfen. Erst dann wird kompiliert.</p>
+              </div>
+            </div>
+            <div id="briefOutput" class="brief-card muted-box">Noch kein Plan erstellt.</div>
+            <div class="feedback-box">
+              <label>Dein Feedback
+                <textarea id="briefFeedback" rows="3" placeholder="z. B. Mehr Alltag, weniger Richtig/Falsch, mehr Schreibfläche …"></textarea>
+              </label>
+              <button id="reviseBriefButton" type="button" class="secondary">Plan überarbeiten</button>
+            </div>
+            <button id="acceptBriefButton" type="button" class="generate-button">Plan übernehmen & kompilieren</button>
+          </section>
+        </form>
+      </section>
+
+      <aside class="preview">
+        <div class="preview-header">
+          <div>
+            <p class="eyebrow">Vorschau & Kohärenzcheck</p>
+            <h2>LearningDesign v3</h2>
+          </div>
+          <button id="resetButton" class="icon-button" type="button">↺</button>
+        </div>
+
+        <section id="coherenceOutput" class="panel">
+          <div class="muted-box">Noch kein Material kompiliert. Starte links.</div>
+        </section>
+        <div id="v3Preview" class="material-sheet"></div>
+
+        <div class="actions v2-actions">
+          <button id="printButton" type="button">PDF drucken</button>
+          <button id="downloadHtmlButton" type="button" class="secondary">HTML</button>
+          <button id="downloadJsonButton" type="button" class="secondary">JSON</button>
+          <button id="downloadTeacherButton" type="button" class="secondary">Lehrkraft-Notiz</button>
+        </div>
+      </aside>
+    </main>
+
+    <script type="module" src="./v3/app-v3.js"></script>
+  </body>
+</html>
