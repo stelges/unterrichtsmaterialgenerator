@@ -18,6 +18,7 @@ const draftKey = "materialCompiler.v2.input";
 const packageKey = "materialCompiler.v2.package";
 let currentPackage = null;
 let currentQuality = null;
+let currentSource = "fallback";
 
 function getFormData() {
   const data = new FormData(form);
@@ -51,26 +52,62 @@ function setFormData(data) {
   }
 }
 
-function generate() {
+function generateFallback() {
   const data = getFormData();
   localStorage.setItem(draftKey, JSON.stringify(data));
-
   currentPackage = buildMaterialPackageV2(data);
   currentQuality = checkMaterialQuality(currentPackage);
-
-  localStorage.setItem(packageKey, JSON.stringify(currentPackage));
-  preview.innerHTML = renderMaterialPackageV2(currentPackage);
-  renderQuality(currentQuality);
-  statusPill.textContent = currentQuality.ok ? "prüfbar" : "prüfen";
+  currentSource = "fallback";
+  saveAndRender();
 }
 
-function renderQuality(quality) {
+async function generate() {
+  const data = getFormData();
+  localStorage.setItem(draftKey, JSON.stringify(data));
+  generateButton.disabled = true;
+  generateButton.textContent = "Kompiliere ...";
+  statusPill.textContent = "arbeitet";
+
+  try {
+    const response = await fetch("/api/v2/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "v2-Generierung fehlgeschlagen.");
+
+    currentPackage = payload.package || buildMaterialPackageV2(data);
+    currentQuality = payload.quality || checkMaterialQuality(currentPackage);
+    currentSource = payload.source || "fallback";
+    saveAndRender(payload.message);
+  } catch (error) {
+    currentPackage = buildMaterialPackageV2(data);
+    currentQuality = checkMaterialQuality(currentPackage);
+    currentSource = "fallback";
+    saveAndRender(`Fallback aktiv: ${error.message}`);
+  } finally {
+    generateButton.disabled = false;
+    generateButton.textContent = "Material kompilieren";
+  }
+}
+
+function saveAndRender(message = "") {
+  localStorage.setItem(packageKey, JSON.stringify(currentPackage));
+  preview.innerHTML = renderMaterialPackageV2(currentPackage);
+  renderQuality(currentQuality, message);
+  statusPill.textContent = currentSource === "ai" ? "KI-v2" : "Basis-v2";
+}
+
+function renderQuality(quality, message = "") {
   const topIssues = quality.issues.slice(0, 6);
   qualityOutput.innerHTML = `
     <div class="quality-score ${quality.score >= 80 ? "good" : quality.score >= 60 ? "medium" : "bad"}">
       <strong>${quality.score}/100</strong>
       <span>${quality.ok ? "Keine kritischen Fehler" : "Noch verbessern"}</span>
     </div>
+    ${message ? `<p>${escapeHtml(message)}</p>` : ""}
+    ${currentSource ? `<p><strong>Quelle:</strong> ${escapeHtml(currentSource === "ai" ? "KI + Qualitätscheck" : "regelbasierter Builder")}</p>` : ""}
     ${topIssues.length ? `<ul>${topIssues.map((issue) => `<li><strong>${escapeHtml(issue.severity)}</strong>: ${escapeHtml(issue.message)}</li>`).join("")}</ul>` : "<p>Der Qualitätscheck findet keine größeren Probleme.</p>"}
   `;
 }
@@ -80,7 +117,7 @@ function buildScobeesText(pkg) {
 }
 
 function buildTeacherNote(pkg, quality) {
-  return `# Lehrkraft-Notiz: ${pkg.meta.title}\n\n## Eckdaten\n- Fach: ${pkg.meta.subject}\n- Klasse: ${pkg.meta.className}\n- Dauer: ${pkg.meta.duration}\n- Modus: ${pkg.meta.templateMode}\n- Seiten: ${pkg.meta.pageCount}\n\n## Ziel\n${pkg.didacticPlan.learningGoal}\n\n## Leitfrage\n${pkg.didacticPlan.guidingQuestion}\n\n## Kernkonzept\n${pkg.didacticPlan.coreConcept}\n\n## Lernweg\n${pkg.didacticPlan.learningPath.map((step, index) => `${index + 1}. ${step}`).join("\n")}\n\n## Typische Fehlvorstellungen\n${pkg.didacticPlan.misconceptions.map((item) => `- ${item}`).join("\n")}\n\n## Erfolgskriterien\n${pkg.didacticPlan.successCriteria.map((item) => `- ${item}`).join("\n")}\n\n## Qualitätscheck\nScore: ${quality.score}/100\n\n${quality.issues.length ? quality.issues.map((issue) => `- [${issue.severity}] ${issue.message}`).join("\n") : "Keine größeren Probleme gefunden."}\n`;
+  return `# Lehrkraft-Notiz: ${pkg.meta.title}\n\n## Eckdaten\n- Fach: ${pkg.meta.subject}\n- Klasse: ${pkg.meta.className}\n- Dauer: ${pkg.meta.duration}\n- Modus: ${pkg.meta.templateMode}\n- Seiten: ${pkg.meta.pageCount}\n- Quelle: ${currentSource}\n\n## Ziel\n${pkg.didacticPlan.learningGoal}\n\n## Leitfrage\n${pkg.didacticPlan.guidingQuestion}\n\n## Kernkonzept\n${pkg.didacticPlan.coreConcept}\n\n## Lernweg\n${pkg.didacticPlan.learningPath.map((step, index) => `${index + 1}. ${step}`).join("\n")}\n\n## Typische Fehlvorstellungen\n${pkg.didacticPlan.misconceptions.map((item) => `- ${item}`).join("\n")}\n\n## Erfolgskriterien\n${pkg.didacticPlan.successCriteria.map((item) => `- ${item}`).join("\n")}\n\n## Qualitätscheck\nScore: ${quality.score}/100\n\n${quality.issues.length ? quality.issues.map((issue) => `- [${issue.severity}] ${issue.message}`).join("\n") : "Keine größeren Probleme gefunden."}\n`;
 }
 
 function buildFullHtml(pkg) {
@@ -107,7 +144,7 @@ function slugify(value) {
 }
 
 function ensurePackage() {
-  if (!currentPackage) generate();
+  if (!currentPackage) generateFallback();
   return currentPackage;
 }
 
@@ -115,7 +152,7 @@ function reset() {
   localStorage.removeItem(draftKey);
   localStorage.removeItem(packageKey);
   form.reset();
-  generate();
+  generateFallback();
 }
 
 function escapeHtml(value) {
@@ -159,4 +196,4 @@ form.addEventListener("input", () => {
 const restoredDraft = localStorage.getItem(draftKey);
 if (restoredDraft) setFormData(JSON.parse(restoredDraft));
 
-generate();
+generateFallback();
