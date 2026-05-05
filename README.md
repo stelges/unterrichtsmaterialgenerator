@@ -1,5 +1,11 @@
 # Unterrichtsmaterialgenerator
 
+> **Status: Veraltet / nicht mehr aktiv gepflegt**
+>
+> Dieses Repository wird nicht mehr aktiv weiterentwickelt. Die neue Version des Materialsystems befindet sich im Repository **`stelges/materialsystem`**.
+>
+> Dieses Repo bleibt nur als alte Referenz bzw. Archiv bestehen.
+
 Lokales KI-gestuetztes Materialstudio fuer Unterrichtsmaterialien.
 
 ## Start
